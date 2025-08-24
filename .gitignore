@@ -18,6 +18,10 @@ lib/
 lib64/
 parts/
 sdist/
+
+# Generated documentation
+docs/api-html/
+docs/api-reference.md
 var/
 wheels/
 share/python-wheels/

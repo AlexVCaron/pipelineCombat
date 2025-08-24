@@ -11,12 +11,12 @@ from typing import Optional, Union
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 __version__ = "0.1.0"
 __author__ = "AlexVCaron"
+
 
 def main() -> None:
     """Main entry point for the pipelinecombat package."""
@@ -28,13 +28,14 @@ def main() -> None:
     print("- dipy: Diffusion imaging processing")
     print("- pgmpy: Probabilistic graphical models")
     print("- statsmodels: Statistical modeling")
-    
+
     # Basic dependency check
     try:
         import dipy
         import neuroHarmonize  # neuroCombat is imported as neuroHarmonize
         import pgmpy
         import statsmodels
+
         print("\n✅ All dependencies are properly installed!")
     except ImportError as e:
         print(f"\n❌ Missing dependency: {e}")
@@ -48,14 +49,14 @@ def get_version() -> str:
 
 def setup_logging(level: str = "INFO") -> None:
     """Configure logging for the package.
-    
+
     Args:
         level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
     """
     numeric_level = getattr(logging, level.upper(), None)
     if not isinstance(numeric_level, int):
-        raise ValueError(f'Invalid log level: {level}')
-    
+        raise ValueError(f"Invalid log level: {level}")
+
     logging.getLogger().setLevel(numeric_level)
     logging.info(f"Logging level set to {level}")
 

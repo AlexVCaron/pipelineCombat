@@ -13,6 +13,61 @@
 			"group": "build",
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Format Python Code",
+			"type": "shell",
+			"command": "./scripts/format_code.sh",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Format Current Python File",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-c",
+				"file='${file}' && if [[ \"$file\" == *.py ]] && [[ -f \"$file\" ]]; then echo \"🧹 Running autoflake on $file...\" && uv run --group dev autoflake --remove-all-unused-imports --remove-unused-variables --ignore-init-module-imports --in-place \"$file\" && echo \"📦 Running isort on $file...\" && uv run --group dev isort --profile=black \"$file\" && echo \"⬆️  Running pyupgrade on $file...\" && uv run --group dev pyupgrade --py312-plus \"$file\" && echo \"⚫ Running black on $file...\" && uv run --group dev black \"$file\" && echo \"✅ Formatted $file\"; else echo \"❌ Not a Python file or file does not exist: $file\"; fi"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Generate API Documentation",
+			"type": "shell",
+			"command": "./scripts/generate_docs.sh",
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"problemMatcher": []
 		}
 	]
 }

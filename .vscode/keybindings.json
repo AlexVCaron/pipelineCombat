@@ -1,0 +1,14 @@
+[
+    {
+        "key": "ctrl+shift+alt+f",
+        "command": "workbench.action.tasks.runTask",
+        "args": "Format Python Code",
+        "when": "editorTextFocus"
+    },
+    {
+        "key": "ctrl+alt+f",
+        "command": "workbench.action.tasks.runTask",
+        "args": "Format Current Python File",
+        "when": "editorTextFocus && resourceExtname == '.py'"
+    }
+]

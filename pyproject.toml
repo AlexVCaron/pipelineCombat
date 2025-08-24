@@ -17,9 +17,44 @@ dependencies = [
     "scikit-learn",
 ]
 
+[dependency-groups]
+dev = [
+    "autoflake",
+    "isort",
+    "pyupgrade",
+    "black",
+    "pdoc",
+]
+
 [project.scripts]
 pipelinecombat = "pipelinecombat:main"
 
 [build-system]
 requires = ["uv_build>=0.8.13,<0.9.0"]
 build-backend = "uv_build"
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.black]
+line-length = 88
+target-version = ['py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
