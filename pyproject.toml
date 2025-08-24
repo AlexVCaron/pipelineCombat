@@ -1,0 +1,25 @@
+[project]
+name = "pipelinecombat"
+version = "0.1.0"
+description = "Pipeline Combat - A Python project for neuroimaging data processing and harmonization"
+readme = "README.md"
+authors = [
+    { name = "AlexVCaron", email = "alex.valcourt.caron@usherbrooke.ca" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "dipy",
+    "neuroharmonize>=2.4.5",
+    "pgmpy",
+    "statsmodels",
+    "numpy",
+    "pandas",
+    "scikit-learn",
+]
+
+[project.scripts]
+pipelinecombat = "pipelinecombat:main"
+
+[build-system]
+requires = ["uv_build>=0.8.13,<0.9.0"]
+build-backend = "uv_build"
