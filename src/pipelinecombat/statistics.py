@@ -17,7 +17,8 @@ try:
     STATSMODELS_AVAILABLE = True
 except ImportError:
     logger.warning(
-        "statsmodels not available. Install with: uv add statsmodels")
+        "statsmodels not available. Install with: uv add statsmodels"
+    )
     STATSMODELS_AVAILABLE = False
 
 
@@ -27,7 +28,8 @@ class NeuroStatAnalyzer:
     def __init__(self):
         if not STATSMODELS_AVAILABLE:
             raise ImportError(
-                "statsmodels is required for statistical analysis")
+                "statsmodels is required for statistical analysis"
+            )
 
         self.results = {}
 
@@ -60,13 +62,15 @@ class NeuroStatAnalyzer:
             data_array = data
             if feature_names is None:
                 feature_names = [
-                    f"feature_{i}" for i in range(data_array.shape[1])]
+                    f"feature_{i}" for i in range(data_array.shape[1])
+                ]
 
         n_subjects, n_features = data_array.shape
 
         if len(covariates) != n_subjects:
             raise ValueError(
-                "Number of subjects in data and covariates must match")
+                "Number of subjects in data and covariates must match"
+            )
 
         results = {
             "coefficients": [],
@@ -151,12 +155,9 @@ class NeuroStatAnalyzer:
             return np.zeros_like(pvalues, dtype=bool), pvalues, alpha, alpha
 
         # Apply correction
-        (
-            reject_valid,
-            pvals_corrected_valid,
-            alphacSidak,
-            alphacBonf
-        ) = multipletests(valid_pvals, alpha=alpha, method=method)
+        (reject_valid, pvals_corrected_valid, alphacSidak, alphacBonf) = (
+            multipletests(valid_pvals, alpha=alpha, method=method)
+        )
 
         # Reconstruct full arrays
         reject_flat = np.zeros_like(pvals_flat, dtype=bool)
@@ -171,7 +172,8 @@ class NeuroStatAnalyzer:
 
         n_significant = np.sum(reject)
         logger.info(
-            f"Found {n_significant} significant results after correction")
+            f"Found {n_significant} significant results after correction"
+        )
 
         return reject, pvals_corrected, alphacSidak, alphacBonf
 
@@ -204,7 +206,8 @@ class NeuroStatAnalyzer:
             data_array = data
             if feature_names is None:
                 feature_names = [
-                    f"feature_{i}" for i in range(data_array.shape[1])]
+                    f"feature_{i}" for i in range(data_array.shape[1])
+                ]
 
         unique_groups = np.unique(groups)
         n_features = data_array.shape[1]
@@ -222,7 +225,8 @@ class NeuroStatAnalyzer:
 
             # Split data by groups
             group_data = [
-                feature_data[groups == group] for group in unique_groups]
+                feature_data[groups == group] for group in unique_groups
+            ]
 
             try:
                 f_stat, p_val = f_oneway(*group_data)
@@ -230,7 +234,8 @@ class NeuroStatAnalyzer:
                 results["pvalues"].append(p_val)
             except Exception as e:
                 logger.warning(
-                    f"ANOVA failed for feature {feature_name}: {str(e)}")
+                    f"ANOVA failed for feature {feature_name}: {str(e)}"
+                )
                 results["f_statistics"].append(np.nan)
                 results["pvalues"].append(np.nan)
 
@@ -273,14 +278,15 @@ class NeuroStatAnalyzer:
             data_array = data
             if feature_names is None:
                 feature_names = [
-                    f"feature_{i}" for i in range(data_array.shape[1])]
+                    f"feature_{i}" for i in range(data_array.shape[1])
+                ]
 
         n_features = data_array.shape[1]
 
         results = {
             "correlations": [],
             "pvalues": [],
-            "feature_names": feature_names
+            "feature_names": feature_names,
         }
 
         # Choose correlation function
@@ -292,7 +298,8 @@ class NeuroStatAnalyzer:
 
             # Remove NaN values
             valid_mask = ~(
-                np.isnan(feature_data) | np.isnan(behavioral_scores))
+                np.isnan(feature_data) | np.isnan(behavioral_scores)
+            )
 
             if np.sum(valid_mask) < 3:  # Need at least 3 points
                 results["correlations"].append(np.nan)
@@ -316,7 +323,8 @@ class NeuroStatAnalyzer:
         results["pvalues"] = np.array(results["pvalues"])
 
         logger.info(
-            f"Correlation analysis completed for {n_features} features")
+            f"Correlation analysis completed for {n_features} features"
+        )
 
         self.results["correlation"] = results
         return results

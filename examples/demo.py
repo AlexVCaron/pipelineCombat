@@ -40,8 +40,12 @@ def main():
 
     try:
         # Create example data with site effects
-        data, covars = create_example_data(n_subjects=50, n_features=20, n_sites=3)
-        print(f"Created data: {data.shape[0]} subjects, {data.shape[1]} features")
+        data, covars = create_example_data(
+            n_subjects=50, n_features=20, n_sites=3
+        )
+        print(
+            f"Created data: {data.shape[0]} subjects, {data.shape[1]} features"
+        )
         print(f"Sites: {covars['SITE'].unique()}")
 
         # Show site effects before harmonization
@@ -53,7 +57,9 @@ def main():
 
         # Simple demonstration of harmonization concept
         # Note: For real harmonization, use the harmonize_data function with proper setup
-        print("Note: This demonstrates site effects. For full harmonization, use:")
+        print(
+            "Note: This demonstrates site effects. For full harmonization, use:"
+        )
         print(
             "  harmonized_data, model = harmonize_data(data, covars, batch_col='SITE')"
         )
@@ -68,8 +74,8 @@ def main():
 
     try:
         # Create example brain and behavioral data
-        brain_data, behavioral_scores, covariates = create_example_behavioral_data(
-            n_subjects=80
+        brain_data, behavioral_scores, covariates = (
+            create_example_behavioral_data(n_subjects=80)
         )
         print(f"Brain data: {brain_data.shape}")
         print(f"Behavioral scores: {behavioral_scores.shape}")
@@ -88,11 +94,15 @@ def main():
         print(f"Found {n_significant} regions with |r| > 0.3")
 
         # Group comparison (ANOVA)
-        anova_results = analyzer.anova_analysis(brain_data, covariates["group"])
+        anova_results = analyzer.anova_analysis(
+            brain_data, covariates["group"]
+        )
 
         # Apply multiple comparisons correction
-        reject, pvals_corrected, _, _ = analyzer.multiple_comparisons_correction(
-            anova_results["pvalues"], method="fdr_bh"
+        reject, pvals_corrected, _, _ = (
+            analyzer.multiple_comparisons_correction(
+                anova_results["pvalues"], method="fdr_bh"
+            )
         )
 
         n_significant_anova = np.sum(reject)
@@ -141,7 +151,9 @@ def main():
 
         for site_id in range(n_sites):
             # Simulate site-specific FA values
-            site_fa = np.random.beta(2, 3, (n_subjects_per_site, n_regions)) * 0.8
+            site_fa = (
+                np.random.beta(2, 3, (n_subjects_per_site, n_regions)) * 0.8
+            )
             # Add site bias
             site_fa += np.random.normal(0, 0.05, (1, n_regions))
 
@@ -160,7 +172,9 @@ def main():
         fa_data = np.vstack(all_fa_data)
         covars_df = pd.concat(all_covars, ignore_index=True)
 
-        print(f"Combined data: {fa_data.shape[0]} subjects, {fa_data.shape[1]} regions")
+        print(
+            f"Combined data: {fa_data.shape[0]} subjects, {fa_data.shape[1]} regions"
+        )
 
         print("2. Harmonizing across sites...")
         print("Note: Using statistical concept demo. For real harmonization:")
@@ -185,7 +199,9 @@ def main():
         )
 
         significant_regions = np.sum(reject)
-        print(f"Found {significant_regions} regions significantly correlated with age")
+        print(
+            f"Found {significant_regions} regions significantly correlated with age"
+        )
 
         print("4. Workflow completed successfully! 🎉")
 
@@ -193,7 +209,9 @@ def main():
         print(f"Integration workflow failed: {e}")
 
     print("\n" + "=" * 50)
-    print("Example completed! Check the modules for more detailed functionality.")
+    print(
+        "Example completed! Check the modules for more detailed functionality."
+    )
     print(
         "For real data analysis, replace synthetic data with actual neuroimaging files."
     )

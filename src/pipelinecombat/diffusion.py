@@ -42,7 +42,7 @@ class DiffusionProcessor:
         self,
         dwi_path: str | Path,
         bvals_path: str | Path,
-        bvecs_path: str | Path
+        bvecs_path: str | Path,
     ) -> None:
         """
         Load diffusion MRI data and gradient information.
@@ -68,8 +68,7 @@ class DiffusionProcessor:
         logger.info(f"Number of gradients: {len(self.bvals)}")
 
     def denoise(
-        self,
-        sigma: float | None = None
+        self, sigma: float | None = None
     ) -> tuple[np.ndarray, np.ndarray | int | float]:
         """
         Denoise diffusion data using local PCA.
@@ -97,9 +96,7 @@ class DiffusionProcessor:
         return denoised_data, estimated_sigma
 
     def create_mask(
-        self,
-        median_radius: int = 4,
-        numpass: int = 1
+        self, median_radius: int = 4, numpass: int = 1
     ) -> np.ndarray:
         """
         Create brain mask using median Otsu algorithm.

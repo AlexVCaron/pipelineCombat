@@ -66,7 +66,8 @@ def harmonize_data(
             covars_copy[batch_col] = covars_copy["site"]
         else:
             raise ValueError(
-                f"Batch column '{batch_col}' not found in covariates")
+                f"Batch column '{batch_col}' not found in covariates"
+            )
     else:
         covars_copy = covars.copy()
 
@@ -80,8 +81,9 @@ def harmonize_data(
             if col != batch_col and covars_encoded[col].dtype == "object":
                 # Convert categorical to numeric (e.g., M/F -> 0/1)
                 if col == "sex":
-                    covars_encoded[col] = (
-                        covars_encoded[col] == "M").astype(int)
+                    covars_encoded[col] = (covars_encoded[col] == "M").astype(
+                        int
+                    )
                 else:
                     # For other categorical variables, use label encoding
                     from sklearn.preprocessing import LabelEncoder
@@ -131,9 +133,7 @@ def apply_harmonization(
 
     try:
         # neuroCombat expects features x subjects
-        data_harmonized = harmonizationApply(
-            data_array.T, covars, model
-        )
+        data_harmonized = harmonizationApply(data_array.T, covars, model)
 
         if data_harmonized is None:
             raise ValueError("Harmonization failed")
