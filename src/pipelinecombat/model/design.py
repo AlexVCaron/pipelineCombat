@@ -25,14 +25,11 @@ class DesignMatrix:
         ]
 
         # Always create batch block (intercepts) - this is required
-        print("batch block encoding")
         self._b_block = self._batch_categorical(
             categorical_data, indexes=[batch_col_index]
         )
         self.n_batches = self._b_block.shape[1]
-        # self._b_block *= np.sum(self._b_block, axis=0) / self.n_batches
 
-        print("categorical block encoding")
         # Create categorical block only if there are non-batch columns
         if len(non_batch_indexes) > 0:
             self._c_block = [
@@ -41,7 +38,6 @@ class DesignMatrix:
                 )
             ]
 
-        print("numerical block encoding")
         # Handle numerical data
         if numerical_data is not None:
             _data = numerical_data.copy()
@@ -73,6 +69,46 @@ class DesignMatrix:
 
         return np.hstack(blocks)
 
+    def model(self, beta):
+        """
+        Apply the linear model to the design matrix.
+
+        Parameters
+        ----------
+        beta : array-like, shape (n_coeff, n_features)
+            The model coefficients.
+
+        Returns
+        -------
+        y_pred : array-like, shape (n_samples, n_features)
+            The predicted values.
+        """
+        X = self.generate()
+        return X @ beta
+
+    def combat(self, y, beta, gamma, delta):
+        """
+        Apply the combat model to the input data using the design matrix.
+
+        Parameters
+        ----------
+        y : array-like, shape (n_samples, n_features)
+            The input data.
+        beta : array-like, shape (n_coeff, n_features)
+            The model coefficients.
+        gamma : array-like, shape (n_samples,)
+            The batch effects.
+        delta : array-like, shape (n_samples,)
+            The variances.
+
+        Returns
+        -------
+        y_combat : array-like, shape (n_samples, n_features)
+            The combat-adjusted values.
+        """
+        _model = self.model(beta)
+        return (y - _model - gamma[:, None]) / delta[:, None] + _model
+
     def _batch_categorical(self, categorical_data, indexes=None):
         """
         Convert categorical data into a big one-hot matrix
@@ -93,13 +129,9 @@ class DesignMatrix:
         if indexes is None:
             indexes = categorical_data.columns.tolist()
 
-        _col = []
-        for ix in indexes:
-            _enc = np.unique(categorical_data[ix], return_inverse=True)[-1]
-            print(f"encoding for {ix} = {categorical_data[ix]} is\n    {_enc}")
-            _col.append(_categorical(_enc, len(np.unique(_enc))))
-
-        return np.hstack(_col)
+        return np.apply_along_axis(
+            _categorical, 0, categorical_data[indexes]
+        ).reshape(len(categorical_data), -1)
 
 
 def _categorical(cat, n_class=None):
@@ -117,7 +149,7 @@ def _categorical(cat, n_class=None):
     Y : array-like, shape (n_samples, n_class)
         The one-hot encoded matrix.
     """
-
+    cat = np.unique(cat, return_inverse=True)[-1]
     Y = np.zeros((len(cat), n_class or np.max(cat) + 1))
     Y[np.arange(len(cat)), cat] = 1.0
     return Y

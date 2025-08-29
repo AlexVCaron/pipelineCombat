@@ -200,7 +200,7 @@ def estimate_model_v(sample, design_matrix):
 
     # Estimate beta using OLS
     beta, _, _, _ = np.linalg.lstsq(design_matrix, sample, rcond=None)
-    noise_variance = np.var(sample - design_matrix @ beta)
+    noise_variance = np.var(sample - design_matrix @ beta, axis=0)
 
     return beta, noise_variance
 
@@ -320,22 +320,19 @@ def estimate_ls_parameters(standard_data, batch_per_sample, batch_links=None):
     _, n_features = standard_data.shape
 
     # Compute gamma_hat: average standardized data per batch
-    gamma_hat = np.zeros((n_batches, n_features))
-    for i, batch_id in enumerate(_batches):
-        batch_mask = batch_per_sample == batch_id
-        gamma_hat[i] = np.mean(standard_data[batch_mask], axis=0)
-
     # Compute delta_hat_var: variance of standardized data per batch
+    gamma_hat = np.zeros((n_batches, n_features))
     delta_hat_var = np.zeros((n_batches, n_features))
     for i, batch_id in enumerate(_batches):
         batch_mask = batch_per_sample == batch_id
-        batch_data = standard_data[batch_mask]
+        gamma_hat[i] = np.mean(standard_data[batch_mask], axis=0)
         delta_hat_var[i] = np.var(
-            batch_data,
+            standard_data[batch_mask],
             mean=gamma_hat[i, None, :],
             axis=0,
             ddof=1
         )
+
     if batch_links is not None:
         print("Applying Bayesian network optimization with sequential"
               " dependencies...")
@@ -362,7 +359,7 @@ def estimate_ls_parameters(standard_data, batch_per_sample, batch_links=None):
             axis=1,
             ddof=1
         )  # (n_batches,)
-        zero_var = variance_vox == 0
+        zero_var = np.isclose(variance_vox, 0)
 
         # Inverse gamma parameters (avoid division by zero)
         lambda_bar = np.zeros(n_batches)
@@ -370,8 +367,8 @@ def estimate_ls_parameters(standard_data, batch_per_sample, batch_links=None):
         avg_on_var = average_vox[~zero_var] / variance_vox[~zero_var]
 
         lambda_bar[~zero_var] = avg_on_var + 2.
-        theta_bar[~zero_var] = average_vox[~zero_var] * (
-            average_vox[~zero_var] * avg_on_var + 1.
+        theta_bar[~zero_var] = avg_on_var * (
+            average_vox[~zero_var] ** 2. + variance_vox[~zero_var]
         )
 
     return (
@@ -424,17 +421,22 @@ def standardize(biased_data, designs, models, modality_per_sample, n_batches):
         _vars = np.asarray(
             [m["noise_variance"] for m in models[_mod_ix]]
         )  # (n_features,)
+        print(f"variance shape {_vars.shape}")
 
         # Compute residuals: data - design @ beta
-        fit = designs[_mod_ix] @ _betas.T  # (n_samples_mod, n_features)
+        _d = designs[_mod_ix].copy()
+        _d[:, :n_batches] *= np.sum(_d[:, :n_batches], axis=0) / n_batches
+        fit = _d @ _betas.T  # (n_samples_mod, n_features)
         residuals = (mod_data - fit)  # (n_samples_mod, n_features)
 
         # Standardize by noise standard deviation (avoid division by zero)
         _zero_var = np.isclose(_vars, 0)
+        print(f"Voxels with non-zero variance {np.sum(~_zero_var)}")
         if np.any(~_zero_var):
-            residuals[..., ~_zero_var] /= np.sqrt(_vars[~_zero_var])
+            residuals[..., ~_zero_var] /= np.sum(np.sqrt(_vars[~_zero_var]))
 
         standard_data[mod_mask] = residuals
+        print(f"Residuals distribution for {_mod_ix} : {np.mean(residuals):.4f} ± {np.std(residuals):.4f}")
 
     return standard_data
 
