@@ -15,7 +15,7 @@
 			"problemMatcher": []
 		},
 		{
-			"label": "Format Python Code",
+			"label": "PEP 8: Format Entire Codebase",
 			"type": "shell",
 			"command": "./scripts/format_code.sh",
 			"options": {
@@ -33,17 +33,63 @@
 			"problemMatcher": []
 		},
 		{
-			"label": "Format Current Python File",
+			"label": "PEP 8: Format Current File",
 			"type": "shell",
-			"command": "bash",
+			"command": "./scripts/format_file_comprehensive.sh",
 			"args": [
-				"-c",
-				"file='${file}' && if [[ \"$file\" == *.py ]] && [[ -f \"$file\" ]]; then echo \"🧹 Running autoflake on $file...\" && uv run --group dev autoflake --remove-all-unused-imports --remove-unused-variables --ignore-init-module-imports --in-place \"$file\" && echo \"📦 Running isort on $file...\" && uv run --group dev isort --profile=black \"$file\" && echo \"⬆️  Running pyupgrade on $file...\" && uv run --group dev pyupgrade --py312-plus \"$file\" && echo \"⚫ Running black on $file...\" && uv run --group dev black \"$file\" && echo \"✅ Formatted $file\"; else echo \"❌ Not a Python file or file does not exist: $file\"; fi"
+				"${file}"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"
 			},
 			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "PEP 8: Quick Lint Check",
+			"type": "shell",
+			"command": "./scripts/lint_check.sh",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"group": "test",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"problemMatcher": {
+				"owner": "ruff",
+				"fileLocation": "relative",
+				"pattern": {
+					"regexp": "^(.+):(\\d+):(\\d+):\\s+(\\w+)\\s+(.+)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"message": 5
+				}
+			}
+		},
+		{
+			"label": "PEP 8: Validate Configuration",
+			"type": "shell",
+			"command": "./scripts/validate_pep8_config.sh",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"group": "test",
 			"presentation": {
 				"echo": true,
 				"reveal": "always",
@@ -68,6 +114,37 @@
 				"clear": false
 			},
 			"problemMatcher": []
+		},
+		{
+			"label": "Run Tests with Coverage",
+			"type": "shell",
+			"command": "uv",
+			"args": [
+				"run",
+				"pytest",
+				"--cov=src/pipelinecombat",
+				"--cov-report=term-missing",
+				"--cov-report=html"
+			],
+			"group": "test",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"problemMatcher": {
+				"owner": "pytest",
+				"fileLocation": "relative",
+				"pattern": {
+					"regexp": "^(.+):(\\d+):\\s*(.*?)\\s*FAILED",
+					"file": 1,
+					"line": 2,
+					"message": 3
+				}
+			}
 		}
 	]
 }

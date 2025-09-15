@@ -1,10 +1,17 @@
+"""
+Pipeline Combat: Neuroimaging data harmonization using statistical models.
+
+This module implements the Pipeline Combat algorithm for harmonizing
+neuroimaging data across different scanners, sites, and acquisition
+protocols using statistical modeling and Bayesian approaches.
+"""
 import numpy as np
 import pandas as pd
-from sklearn.decomposition import PCA
-from pgmpy.models import LinearGaussianBayesianNetwork, DiscreteBayesianNetwork
 from pgmpy.estimators import ExpectationMaximization
-from pgmpy.inference import VariableElimination, BeliefPropagation
 from pgmpy.factors.discrete import DiscreteFactor
+from pgmpy.inference import BeliefPropagation
+from pgmpy.models import DiscreteBayesianNetwork
+from sklearn.decomposition import PCA
 
 from pipelinecombat.model.design import DesignMatrix
 
@@ -17,16 +24,15 @@ def pipeline_combat(
     numerical_col_indexes=None,
     create_pca_block=True,
     pca_n_components=None,
-    batch_links=None
+    batch_links=None,
 ):
     """
     Run pipeline combat.
 
     Parameters
     ----------
-    biased_data : np.ndarray
-        The input biased data to correct.
-        Shape : (n_samples, n_features)
+    biased_data : np.ndarray (n_samples, n_features)
+        The input biased data to correct. n_samples = nbatch * nmod * nsub
     covariates : pd.DataFrame
         The input covariates to preserve. Also includes columns
         with batch and modality information Shape : (n_samples, n_categories)
@@ -62,12 +68,17 @@ def pipeline_combat(
         numerical_col_indexes = []
 
     if all(isinstance(n, int) for n in numerical_col_indexes):
-        numerical_col_indexes = covariates.columns[numerical_col_indexes].to_list()
+        numerical_col_indexes = covariates.columns[
+            numerical_col_indexes
+        ].to_list()
 
     categorical_col_indexes = covariates.columns.difference(
         numerical_col_indexes + modality_col_index
     )
-    print(f"cov cols {categorical_col_indexes} | {numerical_col_indexes + modality_col_index}")
+    print(
+        f"cat {categorical_col_indexes} | "
+        f"num {numerical_col_indexes + modality_col_index}"
+    )
 
     # Collect unique modalities, we build estimates from them
     _mods = np.unique(covariates[modality_col_index])
@@ -83,7 +94,7 @@ def pipeline_combat(
             batch_col_index=batch_col_index,
             create_pca_block=create_pca_block,
             pca_n_components=pca_n_components,
-            numerical_for_pca=biased_data[_samples]
+            numerical_for_pca=biased_data[_samples],
         )
         _dm = design_matrix.generate()
         designs.append(_dm)
@@ -105,21 +116,29 @@ def pipeline_combat(
         designs,
         models,
         modality_per_sample,
-        len(np.unique(batch_per_sample))
+        len(np.unique(batch_per_sample)),
     )
 
     # Estimate location/scale parameters
     (
-        gamma_hat, gamma_bar, gamma_var_bar,
-        delta_hat_var, lambda_bar, theta_bar
+        gamma_hat,
+        gamma_bar,
+        gamma_var_bar,
+        delta_hat_var,
+        lambda_bar,
+        theta_bar,
     ) = estimate_ls_parameters(standard_data, batch_per_sample, batch_links)
 
     # Optimize parameters using EM Bayes
     gamma_star, delta_var_star = empirical_bayes_optimizer(
         standard_data,
-        gamma_hat, gamma_bar, gamma_var_bar,
-        delta_hat_var, lambda_bar, theta_bar,
-        batch_per_sample
+        gamma_hat,
+        gamma_bar,
+        gamma_var_bar,
+        delta_hat_var,
+        lambda_bar,
+        theta_bar,
+        batch_per_sample,
     )
 
     return designs, models, gamma_star, delta_var_star
@@ -131,14 +150,15 @@ def generate_design_matrix_j(
     batch_col_index=0,
     create_pca_block=True,
     pca_n_components=None,
-    numerical_for_pca=None
+    numerical_for_pca=None,
 ):
     """
-    Generate the Design Matrix for a measurement `j`. Has the ability to
-    generate a PCA block from the numerical data to replace it, if requested.
-    In this case, the numerical data provided can have an extra dimension at
-    the end for multiple observations each variable, in which case it will be
-    used to boost the samples.
+    Generate the Design Matrix for a measurement `j`.
+    
+    Has the ability to generate a PCA block from the numerical data to replace
+    it, if requested. In this case, the numerical data provided can have an
+    extra dimension at the end for multiple observations each variable, in
+    which case it will be used to boost the samples.
 
     Parameters
     ----------
@@ -172,6 +192,15 @@ def generate_design_matrix_j(
         pca = PCA(n_components=pca_n_components or len(categorical_data.index))
         pca.fit(_data.T)
 
+        # Apply Marchenko-Pastur to select components
+        n_samples, n_features = _data.shape
+        mp_max = (
+            np.var(_data, axis=1).mean()
+            * (1 + np.sqrt(n_samples / n_features)) ** 2.0
+        )
+        pca = PCA(n_components=np.sum(pca.explained_variance_ < mp_max))
+        pca.fit(_data.T)
+
         # Replace the original numerical data with the PCA system matrix
         numerical_data = pca.components_.T
 
@@ -180,14 +209,15 @@ def generate_design_matrix_j(
 
 def estimate_model_v(sample, design_matrix):
     """
-    Estimate model parameters beta given a system matrix. Also
-    estimate the variance of the noise distribution.
+    Estimate model parameters beta given a system matrix.
+    
+    Also estimate the variance of the noise distribution.
 
-    Parameters:
-    -----------
-    sample : np.array
+    Parameters
+    ----------
+    sample : np.array (n_features,)
         The sample data in v to use for estimating model parameters.
-    design_matrix : np.array
+    design_matrix : np.array (n_features, n_coeff)
         The design matrix to use for estimating model parameters.
 
     Returns
@@ -197,16 +227,20 @@ def estimate_model_v(sample, design_matrix):
     noise_variance : float
         The estimated variance of the noise distribution.
     """
-
     # Estimate beta using OLS
-    beta, _, _, _ = np.linalg.lstsq(design_matrix, sample, rcond=None)
-    noise_variance = np.var(sample - design_matrix @ beta, axis=0)
+    beta, residuals = design_matrix.fit(sample)
+    noise_variance = np.mean(residuals**2.0, axis=0)
 
     return beta, noise_variance
 
 
 def bayes_network_optimizer(standard_data, batch_per_sample, batch_links):
     """
+    Optimize parameters using Bayesian network inference.
+    
+    Estimates optimal gamma and delta parameters for batch harmonization
+    using probabilistic graphical models and belief propagation.
+
     Parameters
     ----------
     standard_data : np.array
@@ -252,8 +286,8 @@ def bayes_network_optimizer(standard_data, batch_per_sample, batch_links):
                 _opt[b] = np.mean(_q.values)
                 _opt_var[b] = np.var(_q.values, ddof=1)
 
-        #_sim = _bn.simulate(1)
-        #for b in range(n_batches):
+        # _sim = _bn.simulate(1)
+        # for b in range(n_batches):
         #    _q = _sim.copy()
         #    del _q[f"b{b}"]
         #    _, _opt[b], _opt_var[b] = _bn.predict(_q)
@@ -261,15 +295,25 @@ def bayes_network_optimizer(standard_data, batch_per_sample, batch_links):
         return _opt, _opt_var
 
     # Create pandas dataframe from gammas with nodes names as columns
-    gamma_df = pd.DataFrame({f"b{b}": np.mean(standard_data[batch_per_sample == b], axis=0)
-                             for b in np.unique(batch_per_sample)})
+    gamma_df = pd.DataFrame(
+        {
+            f"b{b}": np.mean(standard_data[batch_per_sample == b], axis=0)
+            for b in np.unique(batch_per_sample)
+        }
+    )
     print(gamma_df)
     gamma_opt, gamma_var_opt = _optim(gamma_df)
     print(f"Gamma : {gamma_opt} | var : {gamma_var_opt}")
 
-    delta_estim = (standard_data - np.repeat(gamma_opt, bcounts)[:, None]) ** 2.
-    delta_df = pd.DataFrame({f"b{b}": np.mean(delta_estim[batch_per_sample == b], axis=0)
-                             for b in np.unique(batch_per_sample)})
+    delta_estim = (
+        standard_data - np.repeat(gamma_opt, bcounts)[:, None]
+    ) ** 2.0
+    delta_df = pd.DataFrame(
+        {
+            f"b{b}": np.mean(delta_estim[batch_per_sample == b], axis=0)
+            for b in np.unique(batch_per_sample)
+        }
+    )
 
     print(delta_df)
     delta_opt, delta_var_opt = _optim(delta_df)
@@ -281,6 +325,7 @@ def bayes_network_optimizer(standard_data, batch_per_sample, batch_links):
 def estimate_ls_parameters(standard_data, batch_per_sample, batch_links=None):
     """
     Estimate location/scale model parameters using the provided models.
+    
     For now, uses parametric implementation stating that :
 
         gamma_iv   ~ N(gamma_i, tau_i^2)
@@ -330,19 +375,18 @@ def estimate_ls_parameters(standard_data, batch_per_sample, batch_links=None):
             standard_data[batch_mask],
             mean=gamma_hat[i, None, :],
             axis=0,
-            ddof=1
+            ddof=1,
         )
 
     if batch_links is not None:
-        print("Applying Bayesian network optimization with sequential"
-              " dependencies...")
-        (
-            gamma_bar,
-            gamma_var_bar,
-            lambda_bar,
-            theta_bar
-        ) = bayes_network_optimizer(
-            standard_data, batch_per_sample, batch_links
+        print(
+            "Applying Bayesian network optimization with sequential"
+            " dependencies..."
+        )
+        (gamma_bar, gamma_var_bar, lambda_bar, theta_bar) = (
+            bayes_network_optimizer(
+                standard_data, batch_per_sample, batch_links
+            )
         )
     else:
         # Compute gamma distribution parameters (across features)
@@ -354,10 +398,7 @@ def estimate_ls_parameters(standard_data, batch_per_sample, batch_links=None):
         # Compute delta distribution parameters (across features)
         average_vox = np.mean(delta_hat_var, axis=1)  # (n_batches,)
         variance_vox = np.var(
-            delta_hat_var,
-            mean=average_vox[:, None],
-            axis=1,
-            ddof=1
+            delta_hat_var, mean=average_vox[:, None], axis=1, ddof=1
         )  # (n_batches,)
         zero_var = np.isclose(variance_vox, 0)
 
@@ -366,9 +407,9 @@ def estimate_ls_parameters(standard_data, batch_per_sample, batch_links=None):
         theta_bar = np.zeros(n_batches)
         avg_on_var = average_vox[~zero_var] / variance_vox[~zero_var]
 
-        lambda_bar[~zero_var] = avg_on_var + 2.
+        lambda_bar[~zero_var] = avg_on_var + 2.0
         theta_bar[~zero_var] = avg_on_var * (
-            average_vox[~zero_var] ** 2. + variance_vox[~zero_var]
+            average_vox[~zero_var] ** 2.0 + variance_vox[~zero_var]
         )
 
     return (
@@ -377,14 +418,16 @@ def estimate_ls_parameters(standard_data, batch_per_sample, batch_links=None):
         gamma_var_bar,
         delta_hat_var,
         lambda_bar,
-        theta_bar
+        theta_bar,
     )
 
 
 def standardize(biased_data, designs, models, modality_per_sample, n_batches):
     """
-    Standardize the biased data for each modality using the
-    design matrices and model parameters.
+    Standardize the biased data for each modality.
+    
+    Uses design matrices and model parameters for standardization
+    across different neuroimaging modalities.
 
     Parameters
     ----------
@@ -407,7 +450,6 @@ def standardize(biased_data, designs, models, modality_per_sample, n_batches):
         The standardized data.
         Shape : (n_samples, n_features)
     """
-
     standard_data = np.zeros_like(biased_data)
     for _mod_ix in np.unique(modality_per_sample):
         # Get samples for this modality
@@ -421,22 +463,10 @@ def standardize(biased_data, designs, models, modality_per_sample, n_batches):
         _vars = np.asarray(
             [m["noise_variance"] for m in models[_mod_ix]]
         )  # (n_features,)
-        print(f"variance shape {_vars.shape}")
 
-        # Compute residuals: data - design @ beta
-        _d = designs[_mod_ix].copy()
-        _d[:, :n_batches] *= np.sum(_d[:, :n_batches], axis=0) / n_batches
-        fit = _d @ _betas.T  # (n_samples_mod, n_features)
-        residuals = (mod_data - fit)  # (n_samples_mod, n_features)
-
-        # Standardize by noise standard deviation (avoid division by zero)
-        _zero_var = np.isclose(_vars, 0)
-        print(f"Voxels with non-zero variance {np.sum(~_zero_var)}")
-        if np.any(~_zero_var):
-            residuals[..., ~_zero_var] /= np.sum(np.sqrt(_vars[~_zero_var]))
-
-        standard_data[mod_mask] = residuals
-        print(f"Residuals distribution for {_mod_ix} : {np.mean(residuals):.4f} ± {np.std(residuals):.4f}")
+        standard_data[mod_mask] = designs[_mod_ix].standard(
+            mod_data, beta=_betas.T, sigma=np.sqrt(_vars)
+        )
 
     return standard_data
 
@@ -450,7 +480,7 @@ def empirical_bayes_optimizer(
     lambda_bar,
     theta_bar,
     batch_per_sample,
-    niter=30
+    niter=30,
 ):
     """
     Perform empirical bayes optimization on prior parameters.
@@ -499,28 +529,28 @@ def empirical_bayes_optimizer(
 
     gamma_star = np.zeros_like(gamma_hat)  # Shape: (n_batches, n_features)
     delta_var_star = delta_hat_var.copy()  # Shape: (n_batches, n_features)
-    
+
     while not convergence:
         i += 1
-        for batch_idx, (_batch, _bcount) in enumerate(zip(batches, bcounts)):
+        for batch_idx, (_batch, _bcount) in enumerate(
+            zip(batches, bcounts, strict=False)
+        ):
             _bmask = batch_per_sample == _batch
-            
+
             # Update gamma_star for this batch
             gamma_star[batch_idx] = (
-                _bcount * gamma_var_bar[batch_idx] * gamma_hat[batch_idx] +
-                delta_var_star[batch_idx] * gamma_bar[batch_idx]
+                _bcount * gamma_var_bar[batch_idx] * gamma_hat[batch_idx]
+                + delta_var_star[batch_idx] * gamma_bar[batch_idx]
             ) / (
                 _bcount * gamma_var_bar[batch_idx] + delta_var_star[batch_idx]
             )
 
             # Update delta_var_star for this batch
             batch_residuals = standard_data[_bmask] - gamma_star[batch_idx]
-            residual_sum = 0.5 * np.sum(batch_residuals ** 2, axis=0)
+            residual_sum = 0.5 * np.sum(batch_residuals**2, axis=0)
             delta_var_star[batch_idx] = (
                 theta_bar[batch_idx] + residual_sum
-            ) / (
-                _bcount / 2. + lambda_bar[batch_idx] - 1.
-            )
+            ) / (_bcount / 2.0 + lambda_bar[batch_idx] - 1.0)
 
         convergence = i == niter
 

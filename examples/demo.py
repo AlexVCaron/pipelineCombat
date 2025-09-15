@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Example script demonstrating the Pipeline Combat toolkit functionality.
-"""
+"""Example script demonstrating the Pipeline Combat toolkit functionality."""
 
 import logging
 
@@ -12,27 +10,32 @@ import pandas as pd
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Import Pipeline Combat modules
+try:
+    from pipelinecombat.diffusion import create_example_dwi_data
+    from pipelinecombat.harmonization import create_example_data
+    from pipelinecombat.statistics import (
+        NeuroStatAnalyzer,
+        create_example_behavioral_data,
+    )
+    MODULES_AVAILABLE = True
+except ImportError as e:
+    logger.error(f"Failed to import Pipeline Combat modules: {e}")
+    MODULES_AVAILABLE = False
+
 
 def main():
     """Main example function demonstrating all modules."""
-
     print("🧠 Pipeline Combat Example")
     print("=" * 50)
 
-    # Import modules
-    try:
-        from pipelinecombat.diffusion import create_example_dwi_data
-        from pipelinecombat.harmonization import create_example_data
-        from pipelinecombat.statistics import (
-            NeuroStatAnalyzer,
-            create_example_behavioral_data,
-        )
-
-        print("✅ All modules imported successfully!")
-    except ImportError as e:
-        print(f"❌ Import error: {e}")
-        print("Please run 'uv sync' to install dependencies")
+    # Check if modules are available
+    if not MODULES_AVAILABLE:
+        print("❌ Pipeline Combat modules not available. "
+              "Install the package first.")
         return
+
+    print("✅ All modules imported successfully!")
 
     # Example 1: Harmonization
     print("\n📊 Example 1: Data Harmonization (Concept Demo)")
@@ -56,12 +59,15 @@ def main():
         print(f"Mean values by site (before): {site_means.to_dict()}")
 
         # Simple demonstration of harmonization concept
-        # Note: For real harmonization, use the harmonize_data function with proper setup
+        # Note: For real harmonization, use the harmonize_data function
+        # with proper setup
         print(
-            "Note: This demonstrates site effects. For full harmonization, use:"
+            "Note: This demonstrates site effects. For full harmonization, "
+            "use:"
         )
         print(
-            "  harmonized_data, model = harmonize_data(data, covars, batch_col='SITE')"
+            "  harmonized_data, model = harmonize_data(data, covars, "
+            "batch_col='SITE')"
         )
         print("  (requires proper data formatting for neuroHarmonize)")
 
@@ -99,7 +105,7 @@ def main():
         )
 
         # Apply multiple comparisons correction
-        reject, pvals_corrected, _, _ = (
+        reject, _, _, _ = (
             analyzer.multiple_comparisons_correction(
                 anova_results["pvalues"], method="fdr_bh"
             )
@@ -107,7 +113,8 @@ def main():
 
         n_significant_anova = np.sum(reject)
         print(
-            f"Found {n_significant_anova} significant group differences (FDR corrected)"
+            f"Found {n_significant_anova} significant group differences "
+            f"(FDR corrected)"
         )
 
     except Exception as e:
@@ -119,14 +126,14 @@ def main():
 
     try:
         # Create synthetic DWI data
-        dwi_data, bvals, bvecs = create_example_dwi_data(shape=(30, 30, 10))
+        dwi_data, bvals, _ = create_example_dwi_data(shape=(30, 30, 10))
         print(f"DWI data shape: {dwi_data.shape}")
         print(f"Number of b-values: {len(bvals)}")
         print(f"Unique b-values: {np.unique(bvals)}")
 
         print("Note: This is synthetic data. For real analysis, use:")
         print("  processor = DiffusionProcessor()")
-        print("  processor.load_data(dwi_path, bvals_path, bvecs_path)")
+        print("  processor.load_data(dwi_path, bvals_path, __path)")
         print("  fa, md, ad, rd = processor.fit_dti()")
 
     except Exception as e:
@@ -173,13 +180,15 @@ def main():
         covars_df = pd.concat(all_covars, ignore_index=True)
 
         print(
-            f"Combined data: {fa_data.shape[0]} subjects, {fa_data.shape[1]} regions"
+            f"Combined data: {fa_data.shape[0]} subjects, "
+            f"{fa_data.shape[1]} regions"
         )
 
         print("2. Harmonizing across sites...")
         print("Note: Using statistical concept demo. For real harmonization:")
         print(
-            "  harmonized_fa, _ = harmonize_data(fa_data, covars_df, batch_col='SITE')"
+            "  harmonized_fa, _ = harmonize_data(fa_data, covars_df, "
+            "batch_col='SITE')"
         )
 
         # Demonstrate statistical analysis instead
@@ -200,7 +209,8 @@ def main():
 
         significant_regions = np.sum(reject)
         print(
-            f"Found {significant_regions} regions significantly correlated with age"
+            f"Found {significant_regions} regions significantly "
+            f"correlated with age"
         )
 
         print("4. Workflow completed successfully! 🎉")
@@ -213,7 +223,8 @@ def main():
         "Example completed! Check the modules for more detailed functionality."
     )
     print(
-        "For real data analysis, replace synthetic data with actual neuroimaging files."
+        "For real data analysis, replace synthetic data with actual "
+        "neuroimaging files."
     )
 
 

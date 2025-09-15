@@ -1,6 +1,9 @@
 """
-Diffusion imaging processing module using DIPY for analyzing
-diffusion-weighted MRI data.
+Diffusion imaging processing module using DIPY.
+
+Module for analyzing diffusion-weighted MRI data using the DIPY library.
+Provides functions for processing, fitting models, and extracting metrics
+from diffusion tensor imaging (DTI) data.
 """
 
 import logging
@@ -76,7 +79,8 @@ class DiffusionProcessor:
         Args:
             sigma: Noise standard deviation (estimated if None)
 
-        Returns:
+        Returns
+        -------
             Tuple of (denoised_data, sigma)
         """
         if self.data is None:
@@ -105,7 +109,8 @@ class DiffusionProcessor:
             median_radius: Radius for median filtering
             numpass: Number of passes for mask refinement
 
-        Returns:
+        Returns
+        -------
             Binary brain mask
         """
         if self.data is None:
@@ -131,7 +136,8 @@ class DiffusionProcessor:
         """
         Fit diffusion tensor model and compute DTI metrics.
 
-        Returns:
+        Returns
+        -------
             Tuple of (FA, MD, AD, RD) maps
         """
         if self.data is None:
@@ -167,7 +173,8 @@ class DiffusionProcessor:
         """
         Fit diffusion kurtosis model and compute DKI metrics.
 
-        Returns:
+        Returns
+        -------
             Tuple of (MK, AK, RK) maps
         """
         if self.data is None:
@@ -225,7 +232,7 @@ class DiffusionProcessor:
 
 
 def create_example_dwi_data(
-    shape: tuple[int, int, int] = (50, 50, 20)
+    shape: tuple[int, int, int] = (50, 50, 20),
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Create example diffusion MRI data for testing.
@@ -233,14 +240,15 @@ def create_example_dwi_data(
     Args:
         shape: Spatial dimensions of the data
 
-    Returns:
+    Returns
+    -------
         Tuple of (dwi_data, bvals, bvecs)
     """
     np.random.seed(42)
 
     # Create synthetic DWI data
     n_gradients = 64
-    dwi_shape = shape + (n_gradients,)
+    dwi_shape = (*shape, n_gradients)
     dwi_data = np.random.randn(*dwi_shape) * 100 + 1000
 
     # Create b-values (one b=0, rest at b=1000)

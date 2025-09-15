@@ -16,11 +16,9 @@ import pandas as pd
 
 from pipelinecombat.pipelineCombat import pipeline_combat
 
-
 # Optional visualization imports
 try:
     import matplotlib.pyplot as plt
-    import matplotlib
     import seaborn as sns
 
     VISUALIZATION_AVAILABLE = True
@@ -67,8 +65,10 @@ def simulate_dwi_data(
 
     # Generate ground truth DWI signal for each voxel
     # Simulate realistic DWI values (0.5 to 0.7 range)
-    true_signal_base = 1000.0 * np.repeat(
-        np.random.uniform(0.5, 0.7, n_subjects)[:, None], n_voxels, axis=1
+    true_signal_base = 1000.0 * np.apply_along_axis(
+        lambda center: np.random.uniform(center - 0.1, center + 0.1, n_voxels),
+        1,
+        np.random.uniform(0.4, 0.7, n_subjects)[:, None],
     )
 
     # Create direction-dependent signal variation
@@ -105,7 +105,7 @@ def simulate_dwi_data(
             input_signal = base_signal
             biased_signals = []
             for step in range(n_pipeline_steps):
-                # _add = np.random.normal(additive_biases[step], 0.01, n_voxels)
+                # _add = np.random.normal(additive_biases[step], 0.01, n_v)
                 # _mult = np.random.normal(
                 #    multiplicative_biases[step], 0.01, n_voxels
                 # )
@@ -176,7 +176,7 @@ def visualize_pipeline_effects(biased_data, covariates, true_data=None):
     for batch in sorted(covariates["batch"].unique()):
         mask = covariates["batch"] == batch
         batch_means.append(biased_data[mask].mean())
-        batch_names.append(f"{batch+1}")
+        batch_names.append(f"{batch + 1}")
 
     axes[0, 0].bar(range(len(batch_means)), batch_means)
     axes[0, 0].set_title("Mean Signal by Pipeline Step")
@@ -206,7 +206,7 @@ def visualize_pipeline_effects(biased_data, covariates, true_data=None):
 
     sns.heatmap(
         batch_voxel_means,
-        xticklabels=[f"Voxel {i+1}" for i in range(10)],
+        xticklabels=[f"Voxel {i + 1}" for i in range(10)],
         yticklabels=batch_names,
         ax=axes[1, 0],
         cmap="viridis",
@@ -214,13 +214,13 @@ def visualize_pipeline_effects(biased_data, covariates, true_data=None):
     axes[1, 0].set_title("Mean Signal Heatmap (First 10 Voxels)")
 
     # Distribution of signals by pipeline step
-    for i, batch in enumerate(sorted(covariates["batch"].unique())):
+    for batch in sorted(covariates["batch"].unique()):
         mask = covariates["batch"] == batch
         print(biased_data[mask].flatten().shape)
         axes[1, 1].hist(
             biased_data[mask].flatten(),
             alpha=0.6,
-            label=f"{batch+1}",
+            label=f"{batch + 1}",
             bins=30,
         )
 
@@ -264,8 +264,8 @@ def visualize_correction_results(gamma_star, delta_var_star, covariates):
     # Heatmap of gamma parameters
     sns.heatmap(
         gamma_array[:20],  # Show first 20 voxels
-        xticklabels=[f"{i+1}" for i in range(n_batches)],
-        yticklabels=[f"{i+1}" for i in range(20)],
+        xticklabels=[f"{i + 1}" for i in range(n_batches)],
+        yticklabels=[f"{i + 1}" for i in range(20)],
         ax=axes[0, 0],
         cmap="RdBu_r",
         center=0,
@@ -289,12 +289,12 @@ def visualize_correction_results(gamma_star, delta_var_star, covariates):
     axes[0, 1].set_xlabel("Pipeline Step")
     axes[0, 1].set_ylabel("Mean Gamma")
     axes[0, 1].set_xticks(range(n_batches))
-    axes[0, 1].set_xticklabels([f"{i+1}" for i in range(n_batches)])
+    axes[0, 1].set_xticklabels([f"{i + 1}" for i in range(n_batches)])
     axes[0, 1].axhline(y=0, color="red", linestyle="--", alpha=0.7)
-    axes[0, 1].grid(True, alpha=0.3)
+    axes[0, 1].grid(visible=True, alpha=0.3)
 
     # Add value labels on bars
-    for i, (bar, mean, std) in enumerate(zip(bars, gamma_means, gamma_stds)):
+    for bar, mean, std in zip(bars, gamma_means, gamma_stds, strict=False):
         height = bar.get_height()
         axes[0, 1].text(
             bar.get_x() + bar.get_width() / 2.0,
@@ -325,15 +325,15 @@ def visualize_correction_results(gamma_star, delta_var_star, covariates):
                 color=color,
                 linewidth=3,
                 alpha=0.8,
-                label=f"{i+1} (μ={np.mean(gamma):.4f})",
+                label=f"{i + 1} (μ={np.mean(gamma):.4f})",
             )
         else:
             # Use adaptive number of bins based on data range
             n_bins = min(30, max(5, int(len(gamma) / 5)))
-            n, bins, patches = axes[0, 2].hist(
+            _, _, _ = axes[0, 2].hist(
                 gamma,
                 alpha=0.7,
-                label=f"{i+1} (μ={np.mean(gamma):.4f}, σ={np.std(gamma):.4f})",
+                label=f"{i + 1} (μ={np.mean(gamma):.3f}±{np.std(gamma):.3f})",
                 bins=n_bins,
                 color=color,
                 edgecolor="black",
@@ -354,7 +354,7 @@ def visualize_correction_results(gamma_star, delta_var_star, covariates):
         linewidth=2,
         label="Zero line",
     )
-    axes[0, 2].grid(True, alpha=0.3)
+    axes[0, 2].grid(visible=True, alpha=0.3)
 
     # Delta (multiplicative) parameters
     delta_array = np.array(delta_var_star).T  # Shape: (n_voxels, n_batches)
@@ -362,8 +362,8 @@ def visualize_correction_results(gamma_star, delta_var_star, covariates):
     # Heatmap of delta parameters
     sns.heatmap(
         delta_array[:20],  # Show first 20 voxels
-        xticklabels=[f"{i+1}" for i in range(n_batches)],
-        yticklabels=[f"{i+1}" for i in range(20)],
+        xticklabels=[f"{i + 1}" for i in range(n_batches)],
+        yticklabels=[f"{i + 1}" for i in range(20)],
         ax=axes[1, 0],
         cmap="plasma",
     )
@@ -386,14 +386,14 @@ def visualize_correction_results(gamma_star, delta_var_star, covariates):
     axes[1, 1].set_xlabel("Pipeline Step")
     axes[1, 1].set_ylabel("Mean Delta")
     axes[1, 1].set_xticks(range(n_batches))
-    axes[1, 1].set_xticklabels([f"{i+1}" for i in range(n_batches)])
+    axes[1, 1].set_xticklabels([f"{i + 1}" for i in range(n_batches)])
     axes[1, 1].axhline(
         y=1, color="red", linestyle="--", alpha=0.7, label="Unity"
     )
-    axes[1, 1].grid(True, alpha=0.3)
+    axes[1, 1].grid(visible=True, alpha=0.3)
 
     # Add value labels on bars
-    for i, (bar, mean, std) in enumerate(zip(bars, delta_means, delta_stds)):
+    for bar, mean, std in zip(bars, delta_means, delta_stds, strict=False):
         height = bar.get_height()
         axes[1, 1].text(
             bar.get_x() + bar.get_width() / 2.0,
@@ -416,15 +416,15 @@ def visualize_correction_results(gamma_star, delta_var_star, covariates):
                 color=color,
                 linewidth=3,
                 alpha=0.8,
-                label=f"{i+1} (μ={np.mean(delta):.4f})",
+                label=f"{i + 1} (μ={np.mean(delta):.4f})",
             )
         else:
             # Use adaptive number of bins based on data range
             n_bins = min(30, max(5, int(len(delta) / 5)))
-            n, bins, patches = axes[1, 2].hist(
+            _, _, _ = axes[1, 2].hist(
                 delta,
                 alpha=0.7,
-                label=f"{i+1} (μ={np.mean(delta):.4f}, σ={np.std(delta):.4f})",
+                label=f"{i + 1} (μ={np.mean(delta):.3f}±{np.std(delta):.3f})",
                 bins=n_bins,
                 color=color,
                 edgecolor="black",
@@ -445,7 +445,7 @@ def visualize_correction_results(gamma_star, delta_var_star, covariates):
         linewidth=2,
         label="Unity line",
     )
-    axes[1, 2].grid(True, alpha=0.3)
+    axes[1, 2].grid(visible=True, alpha=0.3)
 
     plt.tight_layout()
     plt.show()
@@ -487,11 +487,8 @@ def reconstruct_fitted_data(
             [m["beta"] for m in models[_mod_ix]]
         )  # (n_voxels, n_coef)
 
-        # Reconstruct fitted values: design @ beta
-        fitted_values = (
-            designs[_mod_ix] @ _betas.T
-        )  # (n_samples_mod, n_voxels)
-        fitted_data[mod_mask] = fitted_values
+        # Reconstruct fitted values
+        fitted_data[mod_mask] = designs[_mod_ix](_betas.T)
 
     return fitted_data
 
@@ -540,7 +537,7 @@ def visualize_model_goodness_of_fit(
     # Create expanded true data to match sample structure
     expanded_true_data = np.zeros_like(fitted_data)
     for i, (subject, modality) in enumerate(
-        zip(subject_per_sample, modality_per_sample)
+        zip(subject_per_sample, modality_per_sample, strict=False)
     ):
         # Find corresponding true data index
         true_idx = subject * len(np.unique(modality_per_sample)) + modality
@@ -625,7 +622,7 @@ def visualize_model_goodness_of_fit(
                 s=15,
                 color=batch_colors[i % len(batch_colors)],
                 marker=batch_markers[i % len(batch_markers)],
-                label=f"{batch+1}",
+                label=f"{batch + 1}",
                 edgecolors="black",
                 linewidth=0.3,
             )
@@ -652,7 +649,7 @@ def visualize_model_goodness_of_fit(
         f"True vs Fitted by Batch\n(Overall r={correlation_fitted:.3f})"
     )
     axes[0, 0].legend(bbox_to_anchor=(1.05, 1), loc="upper left")
-    axes[0, 0].grid(True, alpha=0.3)
+    axes[0, 0].grid(visible=True, alpha=0.3)
 
     # 2. R-squared by voxel
     voxel_indices = list(range(len(r_squared_voxels)))
@@ -664,10 +661,10 @@ def visualize_model_goodness_of_fit(
     axes[0, 1].set_title(
         f"R-squared by Voxel\n(Mean R² = {np.mean(r_squared_voxels):.3f})"
     )
-    axes[0, 1].grid(True, alpha=0.3)
+    axes[0, 1].grid(visible=True, alpha=0.3)
 
     # Add value labels on bars for better readability
-    for i, (bar, r2) in enumerate(zip(bars, r_squared_voxels)):
+    for i, (bar, r2) in enumerate(zip(bars, r_squared_voxels, strict=False)):
         if i % 2 == 0:  # Show every other label to avoid crowding
             height = bar.get_height()
             axes[0, 1].text(
@@ -688,7 +685,7 @@ def visualize_model_goodness_of_fit(
     axes[0, 2].set_title(
         f"MSE by Voxel\n(Mean MSE = {np.mean(mse_voxels):.4f})"
     )
-    axes[0, 2].grid(True, alpha=0.3)
+    axes[0, 2].grid(visible=True, alpha=0.3)
 
     # 4. Residuals vs Fitted (colored by batch)
     residuals = true_flat - fitted_flat
@@ -702,7 +699,7 @@ def visualize_model_goodness_of_fit(
                 s=12,
                 color=batch_colors[i % len(batch_colors)],
                 marker=batch_markers[i % len(batch_markers)],
-                label=f"{batch+1}",
+                label=f"{batch + 1}",
                 edgecolors="black",
                 linewidth=0.2,
             )
@@ -714,7 +711,7 @@ def visualize_model_goodness_of_fit(
     axes[1, 0].set_ylabel("Residuals (True - Fitted)")
     axes[1, 0].set_title("Residuals vs Fitted by Batch")
     axes[1, 0].legend()
-    axes[1, 0].grid(True, alpha=0.3)
+    axes[1, 0].grid(visible=True, alpha=0.3)
 
     # 5. Residuals distribution by batch
     axes[1, 1].hist(
@@ -725,7 +722,7 @@ def visualize_model_goodness_of_fit(
         edgecolor="black",
         label="Overall",
         density=True,
-        log=True
+        log=True,
     )
 
     # Add individual batch distributions
@@ -738,11 +735,11 @@ def visualize_model_goodness_of_fit(
                 bins=20,
                 alpha=0.6,
                 color=batch_colors[i % len(batch_colors)],
-                label=f"{batch+1} (n={np.sum(batch_mask)})",
+                label=f"{batch + 1} (n={np.sum(batch_mask)})",
                 density=True,
                 histtype="step",
                 linewidth=2,
-                log=True
+                log=True,
             )
 
     axes[1, 1].axvline(
@@ -752,7 +749,7 @@ def visualize_model_goodness_of_fit(
     axes[1, 1].set_ylabel("log Density")
     axes[1, 1].set_title("Residuals Distribution by Batch")
     # axes[1, 1].legend()
-    axes[1, 1].grid(True, alpha=0.3)
+    axes[1, 1].grid(visible=True, alpha=0.3)
 
     # 6. Model performance by batch and modality
     # Calculate metrics by batch
@@ -798,7 +795,7 @@ def visualize_model_goodness_of_fit(
                 }
 
     # Plot batch comparison
-    batch_names = [f"{b+1}" for b in unique_batches]
+    batch_names = [f"{b + 1}" for b in unique_batches]
     r2_fitted_vals = [batch_metrics[b]["r2_fitted"] for b in unique_batches]
     r2_biased_vals = [batch_metrics[b]["r2_biased"] for b in unique_batches]
 
@@ -835,7 +832,7 @@ def visualize_model_goodness_of_fit(
     axes[1, 2].set_xticks(x_pos)
     axes[1, 2].set_xticklabels(batch_names)
     axes[1, 2].legend()
-    axes[1, 2].grid(True, alpha=0.3)
+    axes[1, 2].grid(visible=True, alpha=0.3)
 
     # Add value labels on bars
     for bars in [bars1, bars2]:
@@ -860,13 +857,14 @@ def visualize_model_goodness_of_fit(
     print(f"Overall Correlation (Fitted vs True): {correlation_fitted:.4f}")
     print(f"Overall Correlation (Biased vs True): {correlation_biased:.4f}")
     print(
-        f"Improvement in Correlation: {correlation_fitted - correlation_biased:.4f}"
+        f"Correlation Δ: {correlation_fitted - correlation_biased:.4f}"
     )
     print(
-        f"Mean R-squared across voxels: {np.mean(r_squared_voxels):.4f} ± {np.std(r_squared_voxels):.4f}"
+        f"Mean R²: {np.mean(r_squared_voxels):.4f} "
+        f"± {np.std(r_squared_voxels):.4f}"
     )
     print(
-        f"Mean MSE across voxels: {np.mean(mse_voxels):.6f} ± {np.std(mse_voxels):.6f}"
+        f"Mean MSE: {np.mean(mse_voxels):.6f} ± {np.std(mse_voxels):.6f}"
     )
     print("Residuals statistics:")
     print(f"  Mean: {np.mean(residuals):.6f}")
@@ -881,7 +879,7 @@ def visualize_model_goodness_of_fit(
     for batch in unique_batches:
         if batch in batch_metrics:
             metrics = batch_metrics[batch]
-            print(f"Batch {batch+1}:")
+            print(f"Batch {batch + 1}:")
             print(
                 f"  Fitted Model - R²: {metrics['r2_fitted']:.4f}, "
                 f"Correlation: {metrics['corr_fitted']:.4f}, "
@@ -908,7 +906,7 @@ def visualize_model_goodness_of_fit(
 def visualize_gamma_parameters(gamma_star, covariates):
     """
     Simple visualization of gamma parameters with 6 subplots in 2x3 grid.
-    
+
     Parameters
     ----------
     gamma_star : list
@@ -921,128 +919,167 @@ def visualize_gamma_parameters(gamma_star, covariates):
         return
 
     print("Creating gamma parameter analysis...")
-    
+
     # Extract batch information
-    unique_batches = sorted(covariates['batch'].unique())
+    unique_batches = sorted(covariates["batch"].unique())
     n_batches = len(unique_batches)
     batch_colors = plt.cm.Set3(np.linspace(0, 1, n_batches))
-    
+
     # Create figure with 2x3 subplots
-    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+    _, axes = plt.subplots(2, 3, figsize=(15, 10))
 
     # 1. Overall gamma distribution
     all_gamma_values = np.concatenate(gamma_star)
-    axes[0, 0].hist(all_gamma_values, bins=50, alpha=0.7, color='steelblue', edgecolor='black')
-    axes[0, 0].axvline(0, color='red', linestyle='--', alpha=0.8, linewidth=2, label='Zero correction')
-    axes[0, 0].set_xlabel('Gamma Values')
-    axes[0, 0].set_ylabel('Frequency')
-    axes[0, 0].set_title('Overall Gamma Distribution')
+    axes[0, 0].hist(
+        all_gamma_values,
+        bins=50,
+        alpha=0.7,
+        color="steelblue",
+        edgecolor="black",
+    )
+    axes[0, 0].axvline(
+        0,
+        color="red",
+        linestyle="--",
+        alpha=0.8,
+        linewidth=2,
+        label="Zero correction",
+    )
+    axes[0, 0].set_xlabel("Gamma Values")
+    axes[0, 0].set_ylabel("Frequency")
+    axes[0, 0].set_title("Overall Gamma Distribution")
     axes[0, 0].legend()
-    axes[0, 0].grid(True, alpha=0.3)
-    
+    axes[0, 0].grid(visible=True, alpha=0.3)
+
     # 2. Gamma values by batch (boxplot)
     batch_gamma_data = []
     batch_labels = []
     for i, batch in enumerate(unique_batches):
         batch_gamma_data.append(gamma_star[i])
-        batch_labels.append(f'{batch+1}')
-    
-    bp = axes[0, 1].boxplot(batch_gamma_data, labels=batch_labels, patch_artist=True)
-    for patch, color in zip(bp['boxes'], batch_colors):
+        batch_labels.append(f"{batch + 1}")
+
+    bp = axes[0, 1].boxplot(
+        batch_gamma_data, labels=batch_labels, patch_artist=True
+    )
+    for patch, color in zip(bp["boxes"], batch_colors, strict=False):
         patch.set_facecolor(color)
         patch.set_alpha(0.7)
-    
-    axes[0, 1].axhline(0, color='red', linestyle='--', alpha=0.8, linewidth=2)
-    axes[0, 1].set_xlabel('Pipeline Batch')
-    axes[0, 1].set_ylabel('Gamma Values')
-    axes[0, 1].set_title('Gamma Distribution by Batch')
-    axes[0, 1].grid(True, alpha=0.3)
-    
+
+    axes[0, 1].axhline(0, color="red", linestyle="--", alpha=0.8, linewidth=2)
+    axes[0, 1].set_xlabel("Pipeline Batch")
+    axes[0, 1].set_ylabel("Gamma Values")
+    axes[0, 1].set_title("Gamma Distribution by Batch")
+    axes[0, 1].grid(visible=True, alpha=0.3)
+
     # 3. Batch statistics comparison
     batch_means = [np.mean(gamma) for gamma in gamma_star]
     batch_stds = [np.std(gamma) for gamma in gamma_star]
-    
+
     x_pos = np.arange(len(unique_batches))
     width = 0.35
-    
-    bars1 = axes[0, 2].bar(x_pos - width/2, batch_means, width, 
-                           label='Mean', alpha=0.8, color=batch_colors)
-    bars2 = axes[0, 2].bar(x_pos + width/2, batch_stds, width, 
-                           label='Std Dev', alpha=0.6, color=batch_colors, hatch='//')
-    
-    axes[0, 2].axhline(0, color='red', linestyle='--', alpha=0.8, linewidth=2)
-    axes[0, 2].set_xlabel('Pipeline Batch')
-    axes[0, 2].set_ylabel('Gamma Statistics')
-    axes[0, 2].set_title('Mean and Standard Deviation by Batch')
+
+    axes[0, 2].bar(
+        x_pos - width / 2,
+        batch_means,
+        width,
+        label="Mean",
+        alpha=0.8,
+        color=batch_colors,
+    )
+    axes[0, 2].bar(
+        x_pos + width / 2,
+        batch_stds,
+        width,
+        label="Std Dev",
+        alpha=0.6,
+        color=batch_colors,
+        hatch="//",
+    )
+
+    axes[0, 2].axhline(0, color="red", linestyle="--", alpha=0.8, linewidth=2)
+    axes[0, 2].set_xlabel("Pipeline Batch")
+    axes[0, 2].set_ylabel("Gamma Statistics")
+    axes[0, 2].set_title("Mean and Standard Deviation by Batch")
     axes[0, 2].set_xticks(x_pos)
     axes[0, 2].set_xticklabels(batch_labels)
     axes[0, 2].legend()
-    axes[0, 2].grid(True, alpha=0.3)
-    
+    axes[0, 2].grid(visible=True, alpha=0.3)
+
     # 4. Gamma range by batch
     gamma_ranges = [np.max(gamma) - np.min(gamma) for gamma in gamma_star]
-    gamma_mins = [np.min(gamma) for gamma in gamma_star]
-    gamma_maxs = [np.max(gamma) for gamma in gamma_star]
-    
+    [np.min(gamma) for gamma in gamma_star]
+    [np.max(gamma) for gamma in gamma_star]
+
     axes[1, 0].bar(batch_labels, gamma_ranges, alpha=0.7, color=batch_colors)
-    axes[1, 0].set_xlabel('Pipeline Batch')
-    axes[1, 0].set_ylabel('Gamma Range')
-    axes[1, 0].set_title('Gamma Parameter Range by Batch')
-    axes[1, 0].grid(True, alpha=0.3)
-    
+    axes[1, 0].set_xlabel("Pipeline Batch")
+    axes[1, 0].set_ylabel("Gamma Range")
+    axes[1, 0].set_title("Gamma Parameter Range by Batch")
+    axes[1, 0].grid(visible=True, alpha=0.3)
+
     # 5. Cumulative gamma effects
     cumulative_gamma = np.zeros_like(gamma_star[0])
     cumulative_data = []
     cumulative_labels = []
-    
+
     for i, gamma in enumerate(gamma_star):
         cumulative_gamma += gamma
         cumulative_data.append(cumulative_gamma.copy())
-        cumulative_labels.append(f'Up to Batch {unique_batches[i]+1}')
-    
-    for i, (cum_gamma, label, color) in enumerate(zip(cumulative_data, cumulative_labels, batch_colors)):
-        axes[1, 1].plot(sorted(cum_gamma), alpha=0.7, color=color, linewidth=2, label=label)
-    
-    axes[1, 1].axhline(0, color='red', linestyle='--', alpha=0.8, linewidth=2)
-    axes[1, 1].set_xlabel('Voxel Index (sorted)')
-    axes[1, 1].set_ylabel('Cumulative Gamma')
-    axes[1, 1].set_title('Cumulative Gamma Effects')
+        cumulative_labels.append(f"Up to Batch {unique_batches[i] + 1}")
+
+    for cum_gamma, label, color in zip(
+        cumulative_data, cumulative_labels, batch_colors, strict=False
+    ):
+        axes[1, 1].plot(
+            sorted(cum_gamma), alpha=0.7, color=color, linewidth=2, label=label
+        )
+
+    axes[1, 1].axhline(0, color="red", linestyle="--", alpha=0.8, linewidth=2)
+    axes[1, 1].set_xlabel("Voxel Index (sorted)")
+    axes[1, 1].set_ylabel("Cumulative Gamma")
+    axes[1, 1].set_title("Cumulative Gamma Effects")
     axes[1, 1].legend()
-    axes[1, 1].grid(True, alpha=0.3)
-    
+    axes[1, 1].grid(visible=True, alpha=0.3)
+
     # 6. Gamma magnitude comparison
     gamma_magnitudes = [np.mean(np.abs(gamma)) for gamma in gamma_star]
-    
-    axes[1, 2].bar(batch_labels, gamma_magnitudes, alpha=0.7, color=batch_colors)
-    axes[1, 2].set_xlabel('Pipeline Batch')
-    axes[1, 2].set_ylabel('Mean |Gamma|')
-    axes[1, 2].set_title('Average Gamma Magnitude by Batch')
-    axes[1, 2].grid(True, alpha=0.3)
-    
+
+    axes[1, 2].bar(
+        batch_labels, gamma_magnitudes, alpha=0.7, color=batch_colors
+    )
+    axes[1, 2].set_xlabel("Pipeline Batch")
+    axes[1, 2].set_ylabel("Mean |Gamma|")
+    axes[1, 2].set_title("Average Gamma Magnitude by Batch")
+    axes[1, 2].grid(visible=True, alpha=0.3)
+
     # Adjust layout
     plt.tight_layout()
     plt.show()
-    
+
     # Print gamma statistics
     print("\n" + "=" * 60)
     print("GAMMA PARAMETER SUMMARY")
     print("=" * 60)
     print(f"Overall gamma mean: {np.mean(all_gamma_values):.6f}")
     print(f"Overall gamma std: {np.std(all_gamma_values):.6f}")
-    print(f"Overall gamma range: [{np.min(all_gamma_values):.6f}, {np.max(all_gamma_values):.6f}]")
-    
+    print(
+        f"Gamma range: [{np.min(all_gamma_values):.6f}, "
+        f"{np.max(all_gamma_values):.6f}]"
+    )
+
     print("\nBatch-specific statistics:")
     for i, batch in enumerate(unique_batches):
         gamma = gamma_star[i]
-        print(f"  Batch {batch+1}: mean={np.mean(gamma):.6f}, "
-              f"std={np.std(gamma):.6f}, "
-              f"range=[{np.min(gamma):.6f}, {np.max(gamma):.6f}]")
+        print(
+            f"  Batch {batch + 1}: mean={np.mean(gamma):.6f}, "
+            f"std={np.std(gamma):.6f}, "
+            f"range=[{np.min(gamma):.6f}, {np.max(gamma):.6f}]"
+        )
 
 
 def visualize_delta_parameters(delta_var_star, covariates):
     """
     Simple visualization of delta parameters with 6 subplots in 2x3 grid.
-    
+
     Parameters
     ----------
     delta_var_star : list
@@ -1055,170 +1092,231 @@ def visualize_delta_parameters(delta_var_star, covariates):
         return
 
     print("Creating delta parameter analysis...")
-    
+
     # Extract batch information
-    unique_batches = sorted(covariates['batch'].unique())
+    unique_batches = sorted(covariates["batch"].unique())
     n_batches = len(unique_batches)
     batch_colors = plt.cm.Set3(np.linspace(0, 1, n_batches))
-    
+
     # Create figure with 2x3 subplots
     fig, axes = plt.subplots(2, 3, figsize=(15, 10))
-    fig.suptitle('Delta Parameter Analysis (Variance Corrections)', 
-                 fontsize=16, fontweight='bold')
-    
+    fig.suptitle(
+        "Delta Parameter Analysis (Variance Corrections)",
+        fontsize=16,
+        fontweight="bold",
+    )
+
     # 1. Overall delta distribution
     all_delta_values = np.concatenate(delta_var_star)
-    axes[0, 0].hist(all_delta_values, bins=50, alpha=0.7, 
-                    color='orange', edgecolor='black')
-    axes[0, 0].axvline(1, color='red', linestyle='--', alpha=0.8, 
-                       linewidth=2, label='No correction (δ=1)')
-    axes[0, 0].set_xlabel('Delta Values')
-    axes[0, 0].set_ylabel('Frequency')
-    axes[0, 0].set_title('Overall Delta Distribution')
+    axes[0, 0].hist(
+        all_delta_values, bins=50, alpha=0.7, color="orange", edgecolor="black"
+    )
+    axes[0, 0].axvline(
+        1,
+        color="red",
+        linestyle="--",
+        alpha=0.8,
+        linewidth=2,
+        label="No correction (δ=1)",
+    )
+    axes[0, 0].set_xlabel("Delta Values")
+    axes[0, 0].set_ylabel("Frequency")
+    axes[0, 0].set_title("Overall Delta Distribution")
     axes[0, 0].legend()
-    axes[0, 0].grid(True, alpha=0.3)
-    
+    axes[0, 0].grid(visible=True, alpha=0.3)
+
     # Add statistics text
     delta_mean = np.mean(all_delta_values)
     delta_std = np.std(all_delta_values)
-    axes[0, 0].text(0.02, 0.98, f'Mean: {delta_mean:.4f}\nStd: {delta_std:.4f}',
-                    transform=axes[0, 0].transAxes, va='top', ha='left',
-                    bbox=dict(boxstyle="round,pad=0.3", facecolor="white", 
-                             alpha=0.8))
-    
+    axes[0, 0].text(
+        0.02,
+        0.98,
+        f"Mean: {delta_mean:.4f}\nStd: {delta_std:.4f}",
+        transform=axes[0, 0].transAxes,
+        va="top",
+        ha="left",
+        bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "alpha": 0.8},
+    )
+
     # 2. Delta values by batch (boxplot)
     batch_delta_data = []
     batch_labels = []
     for i, batch in enumerate(unique_batches):
         batch_delta_data.append(delta_var_star[i])
-        batch_labels.append(f'Batch {batch+1}')
-    
-    bp = axes[0, 1].boxplot(batch_delta_data, labels=batch_labels, 
-                           patch_artist=True)
-    for patch, color in zip(bp['boxes'], batch_colors):
+        batch_labels.append(f"Batch {batch + 1}")
+
+    bp = axes[0, 1].boxplot(
+        batch_delta_data, labels=batch_labels, patch_artist=True
+    )
+    for patch, color in zip(bp["boxes"], batch_colors, strict=False):
         patch.set_facecolor(color)
         patch.set_alpha(0.7)
-    
-    axes[0, 1].axhline(1, color='red', linestyle='--', alpha=0.8, linewidth=2)
-    axes[0, 1].set_xlabel('Pipeline Batch')
-    axes[0, 1].set_ylabel('Delta Values')
-    axes[0, 1].set_title('Delta Distribution by Batch')
-    axes[0, 1].grid(True, alpha=0.3)
-    
+
+    axes[0, 1].axhline(1, color="red", linestyle="--", alpha=0.8, linewidth=2)
+    axes[0, 1].set_xlabel("Pipeline Batch")
+    axes[0, 1].set_ylabel("Delta Values")
+    axes[0, 1].set_title("Delta Distribution by Batch")
+    axes[0, 1].grid(visible=True, alpha=0.3)
+
     # 3. Batch statistics comparison
     batch_means = [np.mean(delta) for delta in delta_var_star]
     batch_stds = [np.std(delta) for delta in delta_var_star]
-    
+
     x_pos = np.arange(len(unique_batches))
     width = 0.35
-    
-    bars1 = axes[0, 2].bar(x_pos - width/2, batch_means, width, 
-                           label='Mean', alpha=0.8, color=batch_colors)
-    bars2 = axes[0, 2].bar(x_pos + width/2, batch_stds, width, 
-                           label='Std Dev', alpha=0.6, color=batch_colors, 
-                           hatch='//')
-    
-    axes[0, 2].axhline(1, color='red', linestyle='--', alpha=0.8, linewidth=2)
-    axes[0, 2].set_xlabel('Pipeline Batch')
-    axes[0, 2].set_ylabel('Delta Statistics')
-    axes[0, 2].set_title('Mean and Standard Deviation by Batch')
+
+    bars1 = axes[0, 2].bar(
+        x_pos - width / 2,
+        batch_means,
+        width,
+        label="Mean",
+        alpha=0.8,
+        color=batch_colors,
+    )
+    bars2 = axes[0, 2].bar(
+        x_pos + width / 2,
+        batch_stds,
+        width,
+        label="Std Dev",
+        alpha=0.6,
+        color=batch_colors,
+        hatch="//",
+    )
+
+    axes[0, 2].axhline(1, color="red", linestyle="--", alpha=0.8, linewidth=2)
+    axes[0, 2].set_xlabel("Pipeline Batch")
+    axes[0, 2].set_ylabel("Delta Statistics")
+    axes[0, 2].set_title("Mean and Standard Deviation by Batch")
     axes[0, 2].set_xticks(x_pos)
     axes[0, 2].set_xticklabels(batch_labels)
     axes[0, 2].legend()
-    axes[0, 2].grid(True, alpha=0.3)
-    
+    axes[0, 2].grid(visible=True, alpha=0.3)
+
     # Add value labels on bars
     for bars in [bars1, bars2]:
         for bar in bars:
             height = bar.get_height()
-            axes[0, 2].text(bar.get_x() + bar.get_width()/2., height + 0.001,
-                           f'{height:.3f}', ha='center', va='bottom', 
-                           fontsize=8)
-    
+            axes[0, 2].text(
+                bar.get_x() + bar.get_width() / 2.0,
+                height + 0.001,
+                f"{height:.3f}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+            )
+
     # 4. Delta range by batch
     delta_ranges = [np.max(delta) - np.min(delta) for delta in delta_var_star]
-    delta_mins = [np.min(delta) for delta in delta_var_star]
-    delta_maxs = [np.max(delta) for delta in delta_var_star]
-    
+    [np.min(delta) for delta in delta_var_star]
+    [np.max(delta) for delta in delta_var_star]
+
     axes[1, 0].bar(batch_labels, delta_ranges, alpha=0.7, color=batch_colors)
-    axes[1, 0].set_xlabel('Pipeline Batch')
-    axes[1, 0].set_ylabel('Delta Range')
-    axes[1, 0].set_title('Delta Parameter Range by Batch')
-    axes[1, 0].grid(True, alpha=0.3)
-    
+    axes[1, 0].set_xlabel("Pipeline Batch")
+    axes[1, 0].set_ylabel("Delta Range")
+    axes[1, 0].set_title("Delta Parameter Range by Batch")
+    axes[1, 0].grid(visible=True, alpha=0.3)
+
     # Add value labels
-    for i, (label, range_val) in enumerate(zip(batch_labels, delta_ranges)):
-        axes[1, 0].text(i, range_val + 0.001, f'{range_val:.3f}', 
-                       ha='center', va='bottom', fontsize=8)
-    
+    for _, (_, range_val) in enumerate(
+        zip(batch_labels, delta_ranges, strict=False)
+    ):
+        axes[1, 0].text(
+            i,
+            range_val + 0.001,
+            f"{range_val:.3f}",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+        )
+
     # 5. Cumulative delta effects (multiplicative)
     cumulative_delta = np.ones_like(delta_var_star[0])
     cumulative_data = []
     cumulative_labels = []
-    
+
     for i, delta in enumerate(delta_var_star):
         cumulative_delta *= delta  # Multiplicative for variance corrections
         cumulative_data.append(cumulative_delta.copy())
-        cumulative_labels.append(f'Up to Batch {unique_batches[i]+1}')
-    
-    for i, (cum_delta, label, color) in enumerate(zip(cumulative_data, 
-                                                     cumulative_labels, 
-                                                     batch_colors)):
-        axes[1, 1].plot(sorted(cum_delta), alpha=0.7, color=color, 
-                       linewidth=2, label=label)
-    
-    axes[1, 1].axhline(1, color='red', linestyle='--', alpha=0.8, linewidth=2)
-    axes[1, 1].set_xlabel('Voxel Index (sorted)')
-    axes[1, 1].set_ylabel('Cumulative Delta')
-    axes[1, 1].set_title('Cumulative Delta Effects (Multiplicative)')
+        cumulative_labels.append(f"Up to Batch {unique_batches[i] + 1}")
+
+    for _, (cum_delta, label, color) in enumerate(
+        zip(cumulative_data, cumulative_labels, batch_colors, strict=False)
+    ):
+        axes[1, 1].plot(
+            sorted(cum_delta), alpha=0.7, color=color, linewidth=2, label=label
+        )
+
+    axes[1, 1].axhline(1, color="red", linestyle="--", alpha=0.8, linewidth=2)
+    axes[1, 1].set_xlabel("Voxel Index (sorted)")
+    axes[1, 1].set_ylabel("Cumulative Delta")
+    axes[1, 1].set_title("Cumulative Delta Effects (Multiplicative)")
     axes[1, 1].legend()
-    axes[1, 1].grid(True, alpha=0.3)
-    
+    axes[1, 1].grid(visible=True, alpha=0.3)
+
     # 6. Delta deviation from unity
     delta_deviations = [np.mean(np.abs(delta - 1)) for delta in delta_var_star]
-    
-    axes[1, 2].bar(batch_labels, delta_deviations, alpha=0.7, 
-                  color=batch_colors)
-    axes[1, 2].set_xlabel('Pipeline Batch')
-    axes[1, 2].set_ylabel('Mean |δ - 1|')
-    axes[1, 2].set_title('Average Delta Deviation from Unity')
-    axes[1, 2].grid(True, alpha=0.3)
-    
+
+    axes[1, 2].bar(
+        batch_labels, delta_deviations, alpha=0.7, color=batch_colors
+    )
+    axes[1, 2].set_xlabel("Pipeline Batch")
+    axes[1, 2].set_ylabel("Mean |δ - 1|")
+    axes[1, 2].set_title("Average Delta Deviation from Unity")
+    axes[1, 2].grid(visible=True, alpha=0.3)
+
     # Add value labels
-    for i, (label, dev) in enumerate(zip(batch_labels, delta_deviations)):
-        axes[1, 2].text(i, dev + 0.001, f'{dev:.3f}', 
-                       ha='center', va='bottom', fontsize=8)
-    
+    for _, (_, dev) in enumerate(
+        zip(batch_labels, delta_deviations, strict=False)
+    ):
+        axes[1, 2].text(
+            i, dev + 0.001, f"{dev:.3f}", ha="center", va="bottom", fontsize=8
+        )
+
     # Adjust layout
     plt.tight_layout()
     plt.show()
-    
+
     # Print delta statistics
     print("\n" + "=" * 60)
     print("DELTA PARAMETER SUMMARY")
     print("=" * 60)
     print(f"Overall delta mean: {np.mean(all_delta_values):.6f}")
     print(f"Overall delta std: {np.std(all_delta_values):.6f}")
-    print(f"Overall delta range: [{np.min(all_delta_values):.6f}, {np.max(all_delta_values):.6f}]")
-    print(f"Mean deviation from unity: {np.mean(np.abs(all_delta_values - 1)):.6f}")
-    
+    print(
+        f"Delta range: [{np.min(all_delta_values):.6f}, "
+        f"{np.max(all_delta_values):.6f}]"
+    )
+    print(
+        f"Mean deviation from unity: "
+        f"{np.mean(np.abs(all_delta_values - 1)):.6f}"
+    )
+
     print("\nBatch-specific statistics:")
     for i, batch in enumerate(unique_batches):
         delta = delta_var_star[i]
         deviation = np.mean(np.abs(delta - 1))
-        print(f"  Batch {batch+1}: mean={np.mean(delta):.6f}, "
-              f"std={np.std(delta):.6f}, "
-              f"range=[{np.min(delta):.6f}, {np.max(delta):.6f}], "
-              f"deviation from 1={deviation:.6f}")
+        print(
+            f"  Batch {batch + 1}: mean={np.mean(delta):.6f}, "
+            f"std={np.std(delta):.6f}, "
+            f"range=[{np.min(delta):.6f}, {np.max(delta):.6f}], "
+            f"deviation from 1={deviation:.6f}"
+        )
 
 
 def visualize_combat_model_goodness_of_fit(
-    biased_data, designs, models, gamma_star, delta_var_star, covariates, true_data
+    biased_data,
+    designs,
+    models,
+    gamma_star,
+    delta_var_star,
+    covariates,
+    true_data,
 ):
     """
     Analyze goodness of fit for the complete Combat model.
-    Combat model: y* = (y - X @ beta - gamma_star) / delta_star + X @ beta
-    
+
+    Combat model: y* = (y - X @ beta - gamma_star) / delta_star + X @ beta.
+
     Parameters
     ----------
     biased_data : np.ndarray
@@ -1241,70 +1339,82 @@ def visualize_combat_model_goodness_of_fit(
         return
 
     print("Creating Combat model goodness of fit analysis...")
-    
+
     # Extract batch and modality information
-    unique_batches = sorted(covariates['batch'].unique())
-    unique_modalities = sorted(covariates['modality'].unique())
+    unique_batches = sorted(covariates["batch"].unique())
+    unique_modalities = sorted(covariates["modality"].unique())
     n_batches = len(unique_batches)
     batch_colors = plt.cm.Set3(np.linspace(0, 1, n_batches))
-    
+
     # Apply complete Combat model to get corrected data
     corrected_data = np.zeros_like(biased_data)
-    
+
     for modality_idx, modality in enumerate(unique_modalities):
         # Get data for this modality
-        modality_mask = covariates['modality'] == modality
+        modality_mask = covariates["modality"] == modality
         modality_data = biased_data[modality_mask, :]
-        
+
         # Get design matrix and model for this modality
-        X = designs[modality_idx]
-        
-        # Extract beta parameters from model structure (same as reconstruct_fitted_data)
-        _betas = np.asarray([m["beta"] for m in models[modality_idx]])  # (n_voxels, n_coef)
-        
-        # Compute X @ beta (biological signal) - design @ beta.T
-        biological_signal = X @ _betas.T  # (n_samples_mod, n_voxels)
-        
-        # Apply Combat correction for each batch
-        for batch_idx, batch in enumerate(unique_batches):
-            batch_mask = covariates.loc[modality_mask, 'batch'] == batch
-            if not batch_mask.any():
-                continue
-                
-            batch_data = modality_data[batch_mask.values, :]
-            batch_bio_signal = biological_signal[batch_mask.values, :]
-            
-            # Combat model: y* = (y - X @ beta - gamma) / delta + X @ beta
-            gamma = gamma_star[batch_idx]
-            delta = delta_var_star[batch_idx]
-            
-            corrected_batch = (batch_data - batch_bio_signal - gamma) / delta + batch_bio_signal
-            
-            # Fix: Use proper indexing to modify the original array
-            full_mask = modality_mask.copy()
-            full_mask[modality_mask] = batch_mask.values
-            corrected_data[full_mask, :] = corrected_batch
-    
+        design_matrix = designs[modality_idx]
+
+        # Extract beta parameters from model structure
+        _betas = np.asarray(
+            [m["beta"] for m in models[modality_idx]]
+        )  # (n_voxels, n_coef)
+        _sigmas = np.sqrt(
+            np.asarray([m["noise_variance"] for m in models[modality_idx]])
+        )  # (n_voxels,)
+
+        corrected_data[modality_mask] = design_matrix.combat(
+            modality_data,
+            _betas.T,
+            gamma_star[covariates.loc[modality_mask, "batch"]],
+            delta_var_star[covariates.loc[modality_mask, "batch"]],
+            _sigmas,
+        )
+
+        # # Apply Combat correction for each batch
+        # for batch_idx, batch in enumerate(unique_batches):
+        #     batch_mask = covariates.loc[modality_mask, 'batch'] == batch
+        #     if not batch_mask.any():
+        #         continue
+
+        #     batch_data = modality_data[batch_mask.values, :]
+        #     gamma = gamma_star[batch_idx]
+        #     delta = delta_var_star[batch_idx]
+
+        #     corrected_batch = X.combat(batch_data, _betas.T, g, d, _sigmas)
+
+        #     # Fix: Use proper indexing to modify the original array
+        #     full_mask = modality_mask.copy()
+        #     full_mask[modality_mask] = batch_mask.values
+        #     corrected_data[full_mask, :] = corrected_batch
+
     # Create figure with 2x3 subplots
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
-    fig.suptitle('Complete Combat Model Goodness of Fit Analysis', 
-                 fontsize=16, fontweight='bold')
-    
-    # Expand true data to match corrected data structure (like in goodness of fit)
-    modality_per_sample = covariates['modality'].to_numpy()
-    subject_per_sample = covariates['subject'].to_numpy()
-    
+    fig.suptitle(
+        "Complete Combat Model Goodness of Fit Analysis",
+        fontsize=16,
+        fontweight="bold",
+    )
+
+    # Expand true data to match corrected data structure
+    modality_per_sample = covariates["modality"].to_numpy()
+    subject_per_sample = covariates["subject"].to_numpy()
+
     # Create expanded true data to match sample structure
     expanded_true_data = np.zeros_like(corrected_data)
-    for i, (subject, modality) in enumerate(zip(subject_per_sample, modality_per_sample)):
+    for i, (subject, modality) in enumerate(
+        zip(subject_per_sample, modality_per_sample, strict=False)
+    ):
         # Find corresponding true data index
         true_idx = subject * len(np.unique(modality_per_sample)) + modality
         if true_idx < len(true_data):
             expanded_true_data[i] = true_data[true_idx]
-    
+
     # Calculate goodness of fit metrics similar to base model visualization
     n_voxels = corrected_data.shape[1]
-    
+
     # R-squared for each voxel (using corrected data vs true data)
     r_squared_voxels = []
     mse_voxels = []
@@ -1375,7 +1485,7 @@ def visualize_combat_model_goodness_of_fit(
                 s=15,
                 color=batch_colors[i % len(batch_colors)],
                 marker=batch_markers[i % len(batch_markers)],
-                label=f"{batch+1}",
+                label=f"{batch + 1}",
                 edgecolors="black",
                 linewidth=0.3,
             )
@@ -1399,10 +1509,10 @@ def visualize_combat_model_goodness_of_fit(
     axes[0, 0].set_xlabel("True Values")
     axes[0, 0].set_ylabel("Combat Corrected Values")
     axes[0, 0].set_title(
-        f"True vs Combat Corrected by Batch\n(Overall r={correlation_corrected:.3f})"
+        f"True vs ComBat Corrected by Batch\n(r={correlation_corrected:.3f})"
     )
     axes[0, 0].legend(bbox_to_anchor=(1.05, 1), loc="upper left")
-    axes[0, 0].grid(True, alpha=0.3)
+    axes[0, 0].grid(visible=True, alpha=0.3)
 
     # 2. R-squared by voxel
     voxel_indices = list(range(len(r_squared_voxels)))
@@ -1414,10 +1524,10 @@ def visualize_combat_model_goodness_of_fit(
     axes[0, 1].set_title(
         f"R-squared by Voxel\n(Mean R² = {np.mean(r_squared_voxels):.3f})"
     )
-    axes[0, 1].grid(True, alpha=0.3)
+    axes[0, 1].grid(visible=True, alpha=0.3)
 
     # Add value labels on bars for better readability
-    for i, (bar, r2) in enumerate(zip(bars, r_squared_voxels)):
+    for i, (bar, r2) in enumerate(zip(bars, r_squared_voxels, strict=False)):
         if i % 2 == 0:  # Show every other label to avoid crowding
             height = bar.get_height()
             axes[0, 1].text(
@@ -1438,7 +1548,7 @@ def visualize_combat_model_goodness_of_fit(
     axes[0, 2].set_title(
         f"MSE by Voxel\n(Mean MSE = {np.mean(mse_voxels):.4f})"
     )
-    axes[0, 2].grid(True, alpha=0.3)
+    axes[0, 2].grid(visible=True, alpha=0.3)
 
     # 4. Residuals vs Combat Corrected (colored by batch)
     residuals = true_flat - corrected_flat
@@ -1452,7 +1562,7 @@ def visualize_combat_model_goodness_of_fit(
                 s=12,
                 color=batch_colors[i % len(batch_colors)],
                 marker=batch_markers[i % len(batch_markers)],
-                label=f"{batch+1}",
+                label=f"{batch + 1}",
                 edgecolors="black",
                 linewidth=0.2,
             )
@@ -1464,7 +1574,7 @@ def visualize_combat_model_goodness_of_fit(
     axes[1, 0].set_ylabel("Residuals (True - Combat Corrected)")
     axes[1, 0].set_title("Residuals vs Combat Corrected by Batch")
     axes[1, 0].legend()
-    axes[1, 0].grid(True, alpha=0.3)
+    axes[1, 0].grid(visible=True, alpha=0.3)
 
     # 5. Residuals distribution by batch
     axes[1, 1].hist(
@@ -1475,7 +1585,7 @@ def visualize_combat_model_goodness_of_fit(
         edgecolor="black",
         label="Overall",
         density=True,
-        log=True
+        log=True,
     )
 
     # Add individual batch distributions
@@ -1488,11 +1598,11 @@ def visualize_combat_model_goodness_of_fit(
                 bins=20,
                 alpha=0.6,
                 color=batch_colors[i % len(batch_colors)],
-                label=f"{batch+1} (n={np.sum(batch_mask)})",
+                label=f"{batch + 1} (n={np.sum(batch_mask)})",
                 density=True,
                 histtype="step",
                 linewidth=2,
-                log=True
+                log=True,
             )
 
     axes[1, 1].axvline(
@@ -1502,7 +1612,7 @@ def visualize_combat_model_goodness_of_fit(
     axes[1, 1].set_ylabel("log Density")
     axes[1, 1].set_title("Residuals Distribution by Batch")
     # axes[1, 1].legend()
-    axes[1, 1].grid(True, alpha=0.3)
+    axes[1, 1].grid(visible=True, alpha=0.3)
     # 6. Model performance by batch and modality
     # Calculate metrics by batch
     batch_metrics = {}
@@ -1527,7 +1637,9 @@ def visualize_combat_model_goodness_of_fit(
                 # R-squared for corrected
                 ss_res_corrected = np.sum((true_batch - corrected_batch) ** 2)
                 ss_tot = np.sum((true_batch - np.mean(true_batch)) ** 2)
-                r2_corrected = 1 - (ss_res_corrected / ss_tot) if ss_tot > 0 else 0
+                r2_corrected = (
+                    1 - (ss_res_corrected / ss_tot) if ss_tot > 0 else 0
+                )
 
                 # R-squared for biased
                 ss_res_biased = np.sum((true_batch - biased_batch) ** 2)
@@ -1542,13 +1654,17 @@ def visualize_combat_model_goodness_of_fit(
                     "r2_biased": r2_biased,
                     "corr_corrected": corr_corrected,
                     "corr_biased": corr_biased,
-                    "mse_corrected": np.mean((true_batch - corrected_batch) ** 2),
+                    "mse_corrected": np.mean(
+                        (true_batch - corrected_batch) ** 2
+                    ),
                     "mse_biased": np.mean((true_batch - biased_batch) ** 2),
                 }
 
     # Plot batch comparison
-    batch_names = [f"{b+1}" for b in unique_batches]
-    r2_corrected_vals = [batch_metrics[b]["r2_corrected"] for b in unique_batches]
+    batch_names = [f"{b + 1}" for b in unique_batches]
+    r2_corrected_vals = [
+        batch_metrics[b]["r2_corrected"] for b in unique_batches
+    ]
     r2_biased_vals = [batch_metrics[b]["r2_biased"] for b in unique_batches]
 
     x_pos = np.arange(len(batch_names))
@@ -1584,7 +1700,7 @@ def visualize_combat_model_goodness_of_fit(
     axes[1, 2].set_xticks(x_pos)
     axes[1, 2].set_xticklabels(batch_names)
     axes[1, 2].legend()
-    axes[1, 2].grid(True, alpha=0.3)
+    axes[1, 2].grid(visible=True, alpha=0.3)
 
     # Add value labels on bars
     for bars in [bars1, bars2]:
@@ -1618,20 +1734,38 @@ def visualize_combat_model_goodness_of_fit(
     print("COMPLETE COMBAT MODEL GOODNESS OF FIT SUMMARY")
     print("=" * 70)
     print("Overall Performance:")
-    print(f"  Combat Corrected - R²: {r2_corrected:.4f}, Correlation: {correlation_corrected:.4f}, MSE: {mse_corrected:.6f}")
-    print(f"  Original Biased  - R²: {r2_biased:.4f}, Correlation: {correlation_biased:.4f}, MSE: {mse_biased:.6f}")
-    print(f"  Improvement      - R²: {r2_corrected - r2_biased:+.4f}, Correlation: {correlation_corrected - correlation_biased:+.4f}, MSE: {mse_biased - mse_corrected:+.6f}")
-    
+    print(
+        f"  Corrected - R²: {r2_corrected:.4f}, "
+        f"Corr: {correlation_corrected:.4f}, MSE: {mse_corrected:.6f}"
+    )
+    print(
+        f"  Biased    - R²: {r2_biased:.4f}, "
+        f"Corr: {correlation_biased:.4f}, MSE: {mse_biased:.6f}"
+    )
+    r2_diff = r2_corrected - r2_biased
+    corr_diff = correlation_corrected - correlation_biased
+    mse_diff = mse_biased - mse_corrected
+    print(
+        f"  Improvement      - R²: {r2_diff:+.4f}, "
+        f"Corr: {corr_diff:+.4f}, MSE: {mse_diff:+.6f}"
+    )
+
     print("Residuals Analysis:")
-    print(f"  Combat Corrected - Mean: {np.mean(residuals):.6f}, Std: {np.std(residuals):.6f}")
+    print(
+        f"  Corrected - μ: {np.mean(residuals):.6f}, "
+        f"std: {np.std(residuals):.6f}"
+    )
     residuals_biased = biased_flat - true_flat
-    print(f"  Original Biased  - Mean: {np.mean(residuals_biased):.6f}, Std: {np.std(residuals_biased):.6f}")
-    
+    print(
+        f"  Biased - μ: {np.mean(residuals_biased):.6f}, "
+        f"std: {np.std(residuals_biased):.6f}"
+    )
+
     print("Batch-Specific Performance:")
     for batch in unique_batches:
         if batch in batch_metrics:
             metrics = batch_metrics[batch]
-            print(f"  Batch {batch+1}:")
+            print(f"  Batch {batch + 1}:")
             print(
                 f"    Combat Corrected - R²: {metrics['r2_corrected']:.4f}, "
                 f"Correlation: {metrics['corr_corrected']:.4f}, "
@@ -1643,7 +1777,9 @@ def visualize_combat_model_goodness_of_fit(
                 f"MSE: {metrics['mse_biased']:.6f}"
             )
             improvement_r2 = metrics["r2_corrected"] - metrics["r2_biased"]
-            improvement_corr = metrics["corr_corrected"] - metrics["corr_biased"]
+            improvement_corr = (
+                metrics["corr_corrected"] - metrics["corr_biased"]
+            )
             improvement_mse = (
                 metrics["mse_biased"] - metrics["mse_corrected"]
             )  # Lower MSE is better
@@ -1661,8 +1797,9 @@ def main():
 
     # Simulate DWI data with pipeline biases
     print("\n1. Simulating DWI data with pipeline-induced biases...")
-    n_pipeline_steps = 15
+    n_pipeline_steps = 6
 
+    # n_samples = nsubject * ndirection * nstep, n_features = nvoxels
     biased_data, covariates, true_data = simulate_dwi_data(
         n_subjects=13,
         n_voxels=1000,
@@ -1701,8 +1838,8 @@ def main():
             modality_col_index="modality",
             numerical_col_indexes=None,
             create_pca_block=True,
-            pca_n_components=17,
-            batch_links=None # batch_links,  # Enable Bayesian network optimization
+            pca_n_components=70,
+            batch_links=None,  # Enable Bayesian optimization
         )
 
         print("✅ Pipeline Combat completed successfully!")
@@ -1739,24 +1876,30 @@ def main():
     # Visualize complete Combat model goodness of fit
     print("\n9. Analyzing complete Combat model goodness of fit...")
     visualize_combat_model_goodness_of_fit(
-        biased_data, designs, models, gamma_star, delta_var_star, covariates, true_data
+        biased_data,
+        designs,
+        models,
+        gamma_star,
+        delta_var_star,
+        covariates,
+        true_data,
     )
 
     # Summary statistics
     print("\n10. Summary of correction parameters:")
     print("-" * 40)
 
-    for i, (gamma, delta) in enumerate(zip(gamma_star, delta_var_star)):
-        print(f"Pipeline Step {i+1}:")
+    for i, (gamma, delta) in enumerate(
+        zip(gamma_star, delta_var_star, strict=False)
+    ):
+        print(f"Pipeline Step {i + 1}:")
         gamma_mean, gamma_std = np.mean(gamma), np.std(gamma)
         delta_mean, delta_std = np.mean(delta), np.std(delta)
         print(
-            f"  Gamma (additive): mean={gamma_mean:.4f}, "
-            f"std={gamma_std:.4f}"
+            f"  Gamma (additive): mean={gamma_mean:.4f}, std={gamma_std:.4f}"
         )
         print(
-            f"  Delta (variance): mean={delta_mean:.4f}, "
-            f"std={delta_std:.4f}"
+            f"  Delta (variance): mean={delta_mean:.4f}, std={delta_std:.4f}"
         )
 
     print("\n" + "=" * 60)
