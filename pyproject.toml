@@ -17,6 +17,8 @@ dependencies = [
     "scikit-learn",
     "matplotlib>=3.10.5",
     "seaborn>=0.13.2",
+    "nibabel>=5.3.2",
+    "requests>=2.32.5",
 ]
 
 [dependency-groups]
@@ -25,6 +27,8 @@ dev = [
     "isort",
     "pyupgrade",
     "black",
+    "flake8",
+    "ruff",
     "pdoc",
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
@@ -39,26 +43,250 @@ build-backend = "uv_build"
 
 [tool.isort]
 profile = "black"
-line_length = 79
+line_length = 79  # PEP 8 prescribed line length
 multi_line_output = 3
 include_trailing_comma = true
 force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
+known_first_party = ["pipelinecombat"]
+known_third_party = [
+    "dipy",
+    "neuroharmonize",
+    "pgmpy",
+    "statsmodels",
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "matplotlib",
+    "seaborn",
+    "nibabel",
+    "requests"
+]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+no_lines_before = ["LOCALFOLDER"]
+force_single_line = false
+combine_as_imports = true
+force_sort_within_sections = true
 
 [tool.black]
-line-length = 79
+line-length = 79  # PEP 8 prescribed line length
 target-version = ['py312']
 include = '\.pyi?$'
-exclude = '''
+skip-string-normalization = false  # PEP 8 prefers double quotes
+skip-magic-trailing-comma = false  # Helps with cleaner diffs
+preview = false  # Use stable features only
+extend-exclude = '''
 /(
+    # Common build/cache directories
     \.git
+  | \.github
   | \.mypy_cache
+  | \.pytest_cache
+  | \.ruff_cache
   | \.tox
   | \.venv
+  | venv
+  | env
+  | ENV
   | _build
   | buck-out
   | build
   | dist
+  | htmlcov
+  | __pycache__
 )/
 '''
+
+[tool.ruff]
+line-length = 79  # PEP 8 prescribed line length
+target-version = "py312"
+src = ["src", "tests", "examples", "scripts"]
+extend-exclude = [
+    "__pycache__",
+    ".git",
+    ".github",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    "venv",
+    "env",
+    "ENV",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "htmlcov",
+]
+fix = true  # Automatically fix issues when possible
+show-fixes = true
+output-format = "concise"
+
+[tool.ruff.lint]
+# Enable comprehensive PEP 8 and best practices rules
+select = [
+    "E",    # pycodestyle errors (PEP 8)
+    "W",    # pycodestyle warnings (PEP 8)
+    "F",    # pyflakes (unused imports, variables)
+    "I",    # isort (import sorting)
+    "N",    # pep8-naming (naming conventions)
+    "UP",   # pyupgrade (modern Python syntax)
+    "B",    # flake8-bugbear (common bugs)
+    "C4",   # flake8-comprehensions (list/dict comprehensions)
+    "C90",  # mccabe (code complexity)
+    "D",    # pydocstyle (docstring conventions)
+    "ERA",  # eradicate (commented-out code)
+    "PL",   # pylint (code quality)
+    "RUF",  # ruff-specific rules
+    "SIM",  # flake8-simplify (code simplification)
+    "TCH",  # flake8-type-checking (type checking imports)
+    "ARG",  # flake8-unused-arguments
+    "PTH",  # flake8-use-pathlib (prefer pathlib)
+    "FBT",  # flake8-boolean-trap (boolean arguments)
+    "A",    # flake8-builtins (builtin shadowing)
+    "COM",  # flake8-commas (trailing commas)
+    "ISC",  # flake8-implicit-str-concat
+    "ICN",  # flake8-import-conventions
+    "PIE",  # flake8-pie (miscellaneous improvements)
+    "T20",  # flake8-print (print statements)
+    "PYI",  # flake8-pyi (stub files)
+    "PT",   # flake8-pytest-style
+    "Q",    # flake8-quotes (consistent quotes)
+    "RSE",  # flake8-raise (exception handling)
+    "RET",  # flake8-return (return statements)
+    "SLF",  # flake8-self (private member access)
+    "TID",  # flake8-tidy-imports
+    "YTT",  # flake8-2020 (sys.version_info usage)
+    "DTZ",  # flake8-datetimez (timezone aware datetimes)
+]
+
+# Ignore specific rules that may conflict with neuroimaging/scientific code
+ignore = [
+    "T201",    # allow print statements (useful for demos and logging)
+    "T203",    # allow pprint
+    "E741",    # ambiguous variable names (common in math: i, j, k, etc.)
+    "D100",    # missing docstring in public module (not always needed)
+    "D104",    # missing docstring in public package (not always needed)
+    "D105",    # missing docstring in magic method (not always needed)
+    "D107",    # missing docstring in __init__ (often redundant)
+    "PLR0913", # too many arguments (common in scientific APIs)
+    "PLR0912", # too many branches (complex scientific logic)
+    "PLR0915", # too many statements (data processing workflows)
+    "PLR2004", # magic value comparison (scientific constants are fine)
+    "FBT001",  # boolean positional argument (scientific APIs use these)
+    "FBT002",  # boolean default argument (scientific APIs use these)
+    "ARG001",  # unused function argument (callbacks, scientific APIs)
+    "ARG002",  # unused method argument (interface compliance)
+    "PTH123",  # open() without pathlib (common in scientific code)
+    "COM812",  # trailing comma (handled by formatter)
+    "ISC001",  # implicit string concat (handled by formatter)
+]
+
+# Allow specific patterns for neuroimaging code
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "D",       # don't require docstrings in tests
+    "PLR2004", # allow magic values in tests
+    "S101",    # allow assert statements in tests
+]
+"examples/*" = [
+    "D100",    # missing module docstring ok in examples
+    "T201",    # allow print in examples
+    "PLR0913", # many args ok in demo functions
+]
+"scripts/*" = [
+    "T201",    # allow print in scripts
+    "D100",    # missing module docstring ok in scripts
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15  # Allow reasonable complexity for scientific algorithms
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"  # Use NumPy docstring style (common in scientific Python)
+
+[tool.ruff.lint.pylint]
+max-args = 8  # Allow more arguments for scientific functions
+
+[tool.ruff.format]
+quote-style = "double"         # PEP 8 preference for double quotes
+indent-style = "space"         # PEP 8 requires spaces, not tabs
+skip-magic-trailing-comma = false  # Preserve trailing commas for cleaner diffs
+line-ending = "auto"           # Let formatter detect line endings
+docstring-code-format = true   # Format code in docstrings
+docstring-code-line-length = 65  # Shorter lines in docstring code examples
+
+[tool.autoflake]
+# PEP 8 compliant import cleanup
+remove-all-unused-imports = true
+remove-unused-variables = true
+remove-duplicate-keys = true
+ignore-init-module-imports = true
+expand-star-imports = true
+ignore-pass-statements = false
+in-place = true
+
+[tool.pytest.ini_options]
+# Comprehensive test configuration
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--verbose",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=src/pipelinecombat",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml:coverage.xml",
+    "--cov-fail-under=80",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+filterwarnings = [
+    "error",  # Turn warnings into errors
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+minversion = "8.0"
+
+[tool.coverage.run]
+source = ["src/pipelinecombat"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/env/*",
+    "*/build/*",
+    "*/dist/*",
+]
+branch = true
+parallel = true
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"

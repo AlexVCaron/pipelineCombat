@@ -1,6 +1,4 @@
-"""
-Statistical modeling module using statsmodels for neuroimaging data analysis.
-"""
+"""Statistical neuroimaging data analysis using statsmodels."""
 
 import logging
 from typing import Any
@@ -49,7 +47,8 @@ class NeuroStatAnalyzer:
             formula: Optional formula string for statsmodels
             feature_names: Names for features (brain regions, etc.)
 
-        Returns:
+        Returns
+        -------
             Dictionary containing regression results
         """
         logger.info("Performing linear regression analysis...")
@@ -106,7 +105,7 @@ class NeuroStatAnalyzer:
 
             except Exception as e:
                 logger.warning(
-                    f"Regression failed for feature {feature_name}: {str(e)}"
+                    f"Regression failed for feature {feature_name}: {e!s}"
                 )
                 # Fill with NaN values
                 n_params = len(covariates.columns) + 1  # +1 for intercept
@@ -137,7 +136,8 @@ class NeuroStatAnalyzer:
             method: Correction method ('bonferroni', 'fdr_bh', etc.)
             alpha: Significance level
 
-        Returns:
+        Returns
+        -------
             Tuple of (reject, pvals_corrected, alphacSidak, alphacBonf)
         """
         logger.info(f"Applying multiple comparisons correction: {method}")
@@ -155,7 +155,7 @@ class NeuroStatAnalyzer:
             return np.zeros_like(pvalues, dtype=bool), pvalues, alpha, alpha
 
         # Apply correction
-        (reject_valid, pvals_corrected_valid, alphacSidak, alphacBonf) = (
+        (reject_valid, pvals_corrected_valid, alpha_sidak, alpha_bonf) = (
             multipletests(valid_pvals, alpha=alpha, method=method)
         )
 
@@ -175,7 +175,7 @@ class NeuroStatAnalyzer:
             f"Found {n_significant} significant results after correction"
         )
 
-        return reject, pvals_corrected, alphacSidak, alphacBonf
+        return reject, pvals_corrected, alpha_sidak, alpha_bonf
 
     def anova_analysis(
         self,
@@ -191,7 +191,8 @@ class NeuroStatAnalyzer:
             groups: Group labels for each subject
             feature_names: Names for features
 
-        Returns:
+        Returns
+        -------
             Dictionary containing ANOVA results
         """
         logger.info("Performing ANOVA analysis...")
@@ -234,7 +235,7 @@ class NeuroStatAnalyzer:
                 results["pvalues"].append(p_val)
             except Exception as e:
                 logger.warning(
-                    f"ANOVA failed for feature {feature_name}: {str(e)}"
+                    f"ANOVA failed for feature {feature_name}: {e!s}"
                 )
                 results["f_statistics"].append(np.nan)
                 results["pvalues"].append(np.nan)
@@ -263,7 +264,8 @@ class NeuroStatAnalyzer:
             method: Correlation method ('pearson', 'spearman')
             feature_names: Names for features
 
-        Returns:
+        Returns
+        -------
             Dictionary containing correlation results
         """
         logger.info(f"Performing {method} correlation analysis...")
@@ -314,7 +316,7 @@ class NeuroStatAnalyzer:
                 results["pvalues"].append(p_val)
             except Exception as e:
                 logger.warning(
-                    f"Correlation failed for feature {feature_name}: {str(e)}"
+                    f"Correlation failed for feature {feature_name}: {e!s}"
                 )
                 results["correlations"].append(np.nan)
                 results["pvalues"].append(np.nan)
@@ -339,7 +341,8 @@ def create_example_behavioral_data(
     Args:
         n_subjects: Number of subjects
 
-    Returns:
+    Returns
+    -------
         Tuple of (brain_data, behavioral_scores, covariates)
     """
     np.random.seed(42)

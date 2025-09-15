@@ -1,6 +1,8 @@
 """
-Harmonization module using neuroCombat for statistical harmonization
-of neuroimaging data across different scanners and sites.
+Harmonization module using neuroCombat.
+
+Statistical harmonization of neuroimaging data across different scanners
+and acquisition sites using the neuroCombat algorithm.
 """
 
 import logging
@@ -40,7 +42,8 @@ def harmonize_data(
         smooth_terms: List of covariate names to include as smooth terms
         smooth_term_bounds: Bounds for smooth terms (min, max)
 
-    Returns:
+    Returns
+    -------
         Tuple of (harmonized_data, model_info)
     """
     if not NEUROCOMBAT_AVAILABLE:
@@ -51,11 +54,10 @@ def harmonize_data(
         f"subjects, {data.shape[1]} features"
     )
 
-    # Convert to numpy array if pandas DataFrame
-    if isinstance(data, pd.DataFrame):
-        data_array = data.values
-    else:
-        data_array = data.copy()
+        # Convert to numpy array if pandas DataFrame
+    data_array = data.values if isinstance(data, pd.DataFrame) else data.copy()
+
+    # Load cached parameters and use them
 
     # Ensure covariates include batch information
     if batch_col not in covars.columns:
@@ -102,7 +104,7 @@ def harmonize_data(
         return harmonized_output[1].T, harmonized_output[0]
 
     except Exception as e:
-        logger.error(f"Harmonization failed: {str(e)}")
+        logger.error(f"Harmonization failed: {e!s}")
         raise
 
 
@@ -117,7 +119,8 @@ def apply_harmonization(
         covars: Covariates for the new data
         model: Pre-trained harmonization model
 
-    Returns:
+    Returns
+    -------
         Harmonized data array
     """
     if not NEUROCOMBAT_AVAILABLE:
@@ -126,10 +129,7 @@ def apply_harmonization(
     logger.info(f"Applying harmonization to {data.shape[0]} subjects")
 
     # Convert to numpy array if pandas DataFrame
-    if isinstance(data, pd.DataFrame):
-        data_array = data.values
-    else:
-        data_array = data.copy()
+    data_array = data.values if isinstance(data, pd.DataFrame) else data.copy()
 
     try:
         # neuroCombat expects features x subjects
@@ -142,7 +142,7 @@ def apply_harmonization(
         return np.asarray(data_harmonized).T  # Return subjects x features
 
     except Exception as e:
-        logger.error(f"Harmonization application failed: {str(e)}")
+        logger.error(f"Harmonization application failed: {e!s}")
         raise
 
 
@@ -157,7 +157,8 @@ def create_example_data(
         n_features: Number of features (e.g., brain regions)
         n_sites: Number of scanning sites
 
-    Returns:
+    Returns
+    -------
         Tuple of (data, covariates)
     """
     np.random.seed(42)

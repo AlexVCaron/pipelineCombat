@@ -1,13 +1,12 @@
 """
-Pipeline Combat: Neuroimaging Data Processing and Harmonization
+Pipeline Combat: Neuroimaging Data Processing and Harmonization.
 
 A Python package for processing and harmonizing neuroimaging data across
 different scanners and acquisition sites using statistical methods.
 """
 
+import importlib.util
 import logging
-from pathlib import Path
-from typing import Optional, Union
 
 # Configure logging
 logging.basicConfig(
@@ -20,7 +19,7 @@ __author__ = "AlexVCaron"
 
 
 def main() -> None:
-    """Main entry point for the pipelinecombat package."""
+    """Run the main entry point for the pipelinecombat package."""
     print("🧠 Welcome to Pipeline Combat!")
     print("Neuroimaging Data Processing and Harmonization Toolkit")
     print(f"Version: {__version__}")
@@ -31,15 +30,22 @@ def main() -> None:
     print("- statsmodels: Statistical modeling")
 
     # Basic dependency check
-    try:
-        import dipy
-        import neuroHarmonize  # neuroCombat is imported as neuroHarmonize
-        import pgmpy
-        import statsmodels
+    dependencies = [
+        "dipy",
+        "neuroHarmonize",
+        "pgmpy",
+        "statsmodels"
+    ]
+    missing_deps = []
 
+    for dep in dependencies:
+        if importlib.util.find_spec(dep) is None:
+            missing_deps.append(dep)
+
+    if not missing_deps:
         print("\n✅ All dependencies are properly installed!")
-    except ImportError as e:
-        print(f"\n❌ Missing dependency: {e}")
+    else:
+        print(f"\n❌ Missing dependencies: {', '.join(missing_deps)}")
         print("Run 'uv sync' to install all dependencies.")
 
 
